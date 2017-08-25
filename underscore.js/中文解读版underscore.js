@@ -241,7 +241,8 @@
   // The cornerstone, an `each` implementation, aka `forEach`.
   // Handles raw objects in addition to array-likes. Treats all
   // sparse array-likes as if they were dense.
-  // @param obj 迭代对象
+  // 迭代对象或数组的每一项
+  // @param obj 用来迭代的对象或数组
   // @param iteratee 迭代方法
   // @param context 执行上下文
   _.each = _.forEach = function(obj, iteratee, context) {
@@ -287,15 +288,28 @@
   };
 
   // Create a reducing function iterating left or right.
+  // reduce 函数的工厂函数, 用于生成一个 reducer, 通过参数决定 reduce 的方向
+  // @param dir 方向 1(left) or 2(right)
+  // @returns {function}
+
   var createReduce = function(dir) {
     // Wrap code that reassigns argument variables in a separate function than
     // the one that accesses `arguments.length` to avoid a perf hit. (#1991)
     var reducer = function(obj, iteratee, memo, initial) {
+      // 有length属性则返回false, 没有length属性则返回obj的keys数组
       var keys = !isArrayLike(obj) && _.keys(obj),
+          // 没有length属性 keys存在(非数组或类数组)，则返回keys的length
+          // 有length属性(数组或类数组)，keys为false, 返回obj的length属性
+          // 此做法是为了处理obj不是数组或类数组的情况
           length = (keys || obj).length,
+          // 初始位置
           index = dir > 0 ? 0 : length - 1;
+      // 如果没有传入初始位置，如果obj不是数组，则memo等于obj的keys[index]属性值
+      // 如果obj是数组，则memo等于obj的index位置处的值
       if (!initial) {
+        // memo为初始值
         memo = obj[keys ? keys[index] : index];
+        // index移向下一位置
         index += dir;
       }
       for (; index >= 0 && index < length; index += dir) {
@@ -313,20 +327,33 @@
 
   // **Reduce** builds up a single result from a list of values, aka `inject`,
   // or `foldl`.
+  // 产生左边方向开始迭代的函数
   _.reduce = _.foldl = _.inject = createReduce(1);
 
   // The right-associative version of reduce, also known as `foldr`.
+  // 
   _.reduceRight = _.foldr = createReduce(-1);
 
   // Return the first value which passes a truth test. Aliased as `detect`.
+  // 查找一个对象中使判断函数predicate返回true的属性，返回其属性值
+  // @param obj 被查找的对象
+  // @param predicate 判断函数
+  // @param context 上下文
+  // return 查找到的属性值 
   _.find = _.detect = function(obj, predicate, context) {
+    // 根据obj的类型返回不同的查找函数
+    // _.findIndex： 传入数组和判断函数，根据索引查找
+    // _.findKey：传入对象和判断函数， 根据属性的key查找
     var keyFinder = isArrayLike(obj) ? _.findIndex : _.findKey;
+    // 找到满足条件的属性key或者索引
     var key = keyFinder(obj, predicate, context);
+    // 如果存在key满足条件， 则返回obj对象的该key的属性值
     if (key !== void 0 && key !== -1) return obj[key];
   };
 
   // Return all the elements that pass a truth test.
   // Aliased as `select`.
+  // 过滤出对象或数组的所有满足条件的元素值，并以数组的形式返回
   _.filter = _.select = function(obj, predicate, context) {
     var results = [];
     predicate = cb(predicate, context);
@@ -337,12 +364,15 @@
   };
 
   // Return all the elements for which a truth test fails.
+  // 过滤出对象或数组的所有 不！！！满足条件的元素值，并以数组的形式返回
   _.reject = function(obj, predicate, context) {
     return _.filter(obj, _.negate(cb(predicate)), context);
   };
 
   // Determine whether all of the elements match a truth test.
   // Aliased as `all`.
+  // 判断对象的属性或数组元素是否每一项都使predicate返回true,
+  // 是则返回true, 否则返回false
   _.every = _.all = function(obj, predicate, context) {
     predicate = cb(predicate, context);
     var keys = !isArrayLike(obj) && _.keys(obj),
@@ -353,9 +383,11 @@
     }
     return true;
   };
-_.keys = 
+
   // Determine if at least one element in the object matches a truth test.
   // Aliased as `any`.
+  // 判断对象的属性或数组元素是否存在使predicate返回true的一项或多项,
+  // 是则返回true, 否则返回false
   _.some = _.any = function(obj, predicate, context) {
     predicate = cb(predicate, context);
     var keys = !isArrayLike(obj) && _.keys(obj),
@@ -734,6 +766,8 @@ _.keys =
   };
 
   // Generator function to create the findIndex and findLastIndex functions.
+  // 返回一个函数，该函数可遍历传入的数组，寻找使传入的函数predicate返回true的一项，
+  // 若找到则返回该项索引，否则返回-1
   var createPredicateIndexFinder = function(dir) {
     return function(array, predicate, context) {
       predicate = cb(predicate, context);
@@ -747,7 +781,9 @@ _.keys =
   };
 
   // Returns the first index on an array-like that passes a predicate test.
+  // 正向查找
   _.findIndex = createPredicateIndexFinder(1);
+  // 反向查找
   _.findLastIndex = createPredicateIndexFinder(-1);
 
   // Use a comparator function to figure out the smallest index at which
@@ -764,6 +800,7 @@ _.keys =
   };
 
   // Generator function to create the indexOf and lastIndexOf functions.
+  // 创造寻找满足条件的元素索引的函数的工厂函数
   var createIndexFinder = function(dir, predicateFind, sortedIndex) {
     return function(array, item, idx) {
       var i = 0, length = getLength(array);
@@ -998,6 +1035,8 @@ _.keys =
   };
 
   // Returns a negated version of the passed-in predicate.
+  // 返回一个函数，如果predicate判断为不符合则返回true,否则返回false
+  // 相当于与predicate相反的判断
   _.negate = function(predicate) {
     return function() {
       return !predicate.apply(this, arguments);
@@ -1093,6 +1132,7 @@ _.keys =
   };
 
   // Retrieve the values of an object's properties.
+  // 返回一个包含该对象的所有属性值的数组
   _.values = function(obj) {
     var keys = _.keys(obj);
     var length = keys.length;
@@ -1176,6 +1216,7 @@ _.keys =
   _.extendOwn = _.assign = createAssigner(_.keys);
 
   // Returns the first key on an object that passes a predicate test.
+  // 寻找obj中使函数predicate返回true的一项属性，找到则返回该属性键值
   _.findKey = function(obj, predicate, context) {
     predicate = cb(predicate, context);
     var keys = _.keys(obj), key;
@@ -1252,12 +1293,15 @@ _.keys =
   };
 
   // Returns whether an object has a given set of `key:value` pairs.
+  // 判断attr中的属性在object中都存在并且相等
   _.isMatch = function(object, attrs) {
     var keys = _.keys(attrs), length = keys.length;
     if (object == null) return !length;
     var obj = Object(object);
     for (var i = 0; i < length; i++) {
       var key = keys[i];
+      // attr一旦有一个属性与object中的不相等，或object不存在该属性
+      // 则返回false
       if (attrs[key] !== obj[key] || !(key in obj)) return false;
     }
     return true;
