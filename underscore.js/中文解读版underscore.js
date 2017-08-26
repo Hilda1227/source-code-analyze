@@ -134,6 +134,7 @@
     if (value == null) return _.identity;
     // 如果value为函数，则返回一个经optimizeCb()优化的回调函数
     if (_.isFunction(value)) return optimizeCb(value, context, argCount);
+    // 如果value为对象，
     if (_.isObject(value) && !_.isArray(value)) return _.matcher(value);
     return _.property(value);
   };
@@ -155,6 +156,7 @@
   //  * @param startIndex 开始的位置
   //  * @returns {function}
   //  */
+  // 类似于ES6的rest参数，它将startIndex开始及后的参数放入一个数组中然后传入func
   var restArgs = function(func, startIndex) {
     // startIndex如果为空，则赋值为函数func的参数个数减一，'+startIndex'是为了将String类型转化为Number类型
     startIndex = startIndex == null ? func.length - 1 : +startIndex;
@@ -166,11 +168,13 @@
       for (; index < length; index++) {
         rest[index] = arguments[index + startIndex];
       }
+      // 常见的从0 1 2位置处开始转化数组的用call调用
       switch (startIndex) {
         case 0: return func.call(this, rest);
         case 1: return func.call(this, arguments[0], rest);
         case 2: return func.call(this, arguments[0], arguments[1], rest);
       }
+      // startIndex较大的情况，将前面的参数也放入数组中，用apply调用
       var args = Array(startIndex + 1);
       for (index = 0; index < startIndex; index++) {
         args[index] = arguments[index];
@@ -401,13 +405,17 @@
 
   // Determine if the array or object contains a given item (using `===`).
   // Aliased as `includes` and `include`.
+  // 判断一个数组或对象中是否存在指定的某项
   _.contains = _.includes = _.include = function(obj, item, fromIndex, guard) {
+    // 如果obj不是数组，则取出其的所有属性值组成一个数组
     if (!isArrayLike(obj)) obj = _.values(obj);
     if (typeof fromIndex != 'number' || guard) fromIndex = 0;
     return _.indexOf(obj, item, fromIndex) >= 0;
   };
 
   // Invoke a method (with arguments) on every item in a collection.
+  // 在list的每个元素上执行methodName方法
+  // 任何传递给invoke的额外参数， invoke都会在调用methodName方法的时候传递给它。
   _.invoke = restArgs(function(obj, path, args) {
     var contextPath, func;
     if (_.isFunction(path)) {
@@ -788,10 +796,20 @@
 
   // Use a comparator function to figure out the smallest index at which
   // an object should be inserted so as to maintain order. Uses binary search.
+  // 寻找 当往一个有序数组插入元素时， 能保持数组继续有序的的位置，
+  // 此有序指的是经过迭代函数之后的有序
+  /*@param array 迭代数组
+  * @param obj 要插入的目标值
+  * @param iteratee 迭代函数
+  * @param context 上下文
+  * return Number类型  应该插入的位置*/
+  
   _.sortedIndex = function(array, obj, iteratee, context) {
     iteratee = cb(iteratee, context, 1);
+    // 将目标值经过迭代函数
     var value = iteratee(obj);
     var low = 0, high = getLength(array);
+    // 有序数组，使用二分法查找
     while (low < high) {
       var mid = Math.floor((low + high) / 2);
       if (iteratee(array[mid]) < value) low = mid + 1; else high = mid;
@@ -800,24 +818,39 @@
   };
 
   // Generator function to create the indexOf and lastIndexOf functions.
-  // 创造寻找满足条件的元素索引的函数的工厂函数
+  // 创造寻找满足条件的元素索引的函数的工厂函数, 可判断包括NaN在内的情况
+  // dir: 查找方向
+  // predicateFind： 查找判断，此处主要用来处理查找目标值为NaN的情况
   var createIndexFinder = function(dir, predicateFind, sortedIndex) {
     return function(array, item, idx) {
       var i = 0, length = getLength(array);
+      // 如果传入的idx类型为Number
       if (typeof idx == 'number') {
-        if (dir > 0) {
+        if (dir > 0) {  // 正向查找
+          // 重置查找的起始位置  如果idx小于0，则从右边数第|idx|位开始查找
           i = idx >= 0 ? idx : Math.max(idx + length, i);
-        } else {
+        } else {  // 反向查找
+          // 重置length属性值
           length = idx >= 0 ? Math.min(idx + 1, length) : idx + length + 1;
         }
       } else if (sortedIndex && idx && length) {
+        // 能用二分法查找的条件：有序 && idx!== 0 && length ！== 0
+        // 用二分法查找，加快效率
+        // 找到合适插入item的位置， 如果存在相等的一项，则找到的插入的位置就是相等元素的位置
         idx = sortedIndex(array, item);
         return array[idx] === item ? idx : -1;
       }
+      // 如果item 为NaN
       if (item !== item) {
+        // slice.call(array, i, length)：将类数组转化为数组
+        // 找到array中使_isNaN返回true的一项，即NaN
         idx = predicateFind(slice.call(array, i, length), _.isNaN);
         return idx >= 0 ? idx + i : -1;
       }
+      // O(n) 遍历数组
+      // 寻找和 item 相同的元素
+      // 特判排除了 item 为 NaN 的情况
+      // 可以放心地用 `===` 来判断是否相等了
       for (idx = dir > 0 ? i : length - 1; idx >= 0 && idx < length; idx += dir) {
         if (array[idx] === item) return idx;
       }
@@ -829,6 +862,7 @@
   // or -1 if the item is not included in the array.
   // If the array is large and already in sort order, pass `true`
   // for **isSorted** to use binary search.
+  // _.findIndex, _.findLastIndex:正向， 反向查找数组中使传入的函数返回true的一项
   _.indexOf = createIndexFinder(1, _.findIndex, _.sortedIndex);
   _.lastIndexOf = createIndexFinder(-1, _.findLastIndex);
 
@@ -1293,7 +1327,7 @@
   };
 
   // Returns whether an object has a given set of `key:value` pairs.
-  // 判断attr中的属性在object中都存在并且相等
+  // 判断是否attr中的所有属性在object中都存在并且相等
   _.isMatch = function(object, attrs) {
     var keys = _.keys(attrs), length = keys.length;
     if (object == null) return !length;
@@ -1474,6 +1508,7 @@
   };
 
   // Is the given value `NaN`?
+  // 判断值是否为isNaN
   _.isNaN = function(obj) {
     return _.isNumber(obj) && isNaN(obj);
   };
