@@ -27,7 +27,7 @@
 
   // 将Array Object Symbol类型的原型对象赋值给各变量，同时缓存变量，方便压缩代码
   var ArrayProto = Array.prototype, ObjProto = Object.prototype;
-  var SymbolProto = typeof Symbol !== 'undefined' ? Symbol.prototype : null;
+  var SymbolProto = typeof Symbol !== '' ? Symbol.prototype : null;
 
   // Create quick reference variables for speed access to core prototypes.
 
@@ -339,7 +339,7 @@
   _.reduceRight = _.foldr = createReduce(-1);
 
   // Return the first value which passes a truth test. Aliased as `detect`.
-  // 查找一个对象中使判断函数predicate返回true的属性，返回其属性值
+  // 查找一个对象或数组中使判断函数predicate返回true的属性，返回其匹配到的第一个属性值
   // @param obj 被查找的对象
   // @param predicate 判断函数
   // @param context 上下文
@@ -414,14 +414,16 @@
   };
 
   // Invoke a method (with arguments) on every item in a collection.
-  // 在list的每个元素上执行methodName方法
-  // 任何传递给invoke的额外参数， invoke都会在调用methodName方法的时候传递给它。
+  // 在obj的每个元素上执行path方法
+  // 任何传递给invoke的额外参数， invoke都会在调用path方法的时候传递给它。
   _.invoke = restArgs(function(obj, path, args) {
     var contextPath, func;
     if (_.isFunction(path)) {
       func = path;
     } else if (_.isArray(path)) {
+      // 如果path是数组，contextPath取前n-1个
       contextPath = path.slice(0, -1);
+      // path等于path最后一项
       path = path[path.length - 1];
     }
     return _.map(obj, function(context) {
@@ -438,19 +440,25 @@
   });
 
   // Convenience version of a common use case of `map`: fetching a property.
+  // 遍历obj的每一项，将其key属性的值放入数组中返回，没有则为undefind
   _.pluck = function(obj, key) {
+    // _.property(key)返回一个函数，该函数获取传入对象的key属性值
     return _.map(obj, _.property(key));
   };
 
   // Convenience version of a common use case of `filter`: selecting only objects
   // containing specific `key:value` pairs.
+  // 过滤出obj中存在attrs的所有属性且相等的元素，返回
   _.where = function(obj, attrs) {
     return _.filter(obj, _.matcher(attrs));
   };
 
   // Convenience version of a common use case of `find`: getting the first object
   // containing specific `key:value` pairs.
+  // 寻找obj中 存在attr中所有属性且值相等的一项，找到则立即返回这一项的值
   _.findWhere = function(obj, attrs) {
+    // 寻找obj中第一个使_.matcher(attrs)返回ture的一项，返回该项的值
+    // _.matcher(attrs)返回ture，即attr中的所有属性 目标值里都存在且相等
     return _.find(obj, _.matcher(attrs));
   };
 
@@ -1146,19 +1154,23 @@
   // Delegates to **ECMAScript 5**'s native `Object.keys`.
   _.keys = function(obj) {
     if (!_.isObject(obj)) return [];
+    // 如果原生keys方存在，则用原生keys方法
     if (nativeKeys) return nativeKeys(obj);
     var keys = [];
+    // 遍历对象，把所有属于obj对象自身的键放进keys数组
     for (var key in obj) if (_.has(obj, key)) keys.push(key);
     // Ahem, IE < 9. 
-    // IE9以下的对象的属性不能被for in 遍历
+    // profill IE9以下的对象的属性不能被for in 遍历
     if (hasEnumBug) collectNonEnumProps(obj, keys);
     return keys;
   };
 
   // Retrieve all the property names of an object.
   _.allKeys = function(obj) {
+    // 不是对象则返回一个空数组
     if (!_.isObject(obj)) return [];
     var keys = [];
+    // 遍历对象，把所有对象自身及原型对象上可枚举的键放进keys数组
     for (var key in obj) keys.push(key);
     // Ahem, IE < 9.
     if (hasEnumBug) collectNonEnumProps(obj, keys);
@@ -1224,17 +1236,27 @@
   };
 
   // An internal function for creating assigner functions.
+  // 下面三个方法的的工厂函数
+  // _.extend = createAssigner(_.allKeys); 复制所有attrs对象及其原型上的所有可枚举属性
+  // _.extendOwn = _.assign = createAssigner(_.keys);复制attrs自身对象上的所有可枚举属性
+  // _.defaults = createAssigner(_.allKeys, true);同_.extend,区别在于后面的是否会覆盖前面的属性
   var createAssigner = function(keysFunc, defaults) {
     return function(obj) {
       var length = arguments.length;
       if (defaults) obj = Object(obj);
+      // 如果参数个数小于2或者obj为空， 则返回原函数
       if (length < 2 || obj == null) return obj;
+      // 遍历除第一个参数后面的所有参数，
       for (var index = 1; index < length; index++) {
         var source = arguments[index],
+            // keysFunc为传入的_.keys或者_.allKeys
             keys = keysFunc(source),
             l = keys.length;
         for (var i = 0; i < l; i++) {
           var key = keys[i];
+          // 如果default为false或者没有传入default,一定会给obj[key]赋值
+          // 若default为true, 那么如果该属性等于，则会赋值，不为则不会赋值
+          // 此是为了兼顾_.default方法，传入default参数，决定后面的属性是否会覆盖前面相同的属性
           if (!defaults || obj[key] === void 0) obj[key] = source[key];
         }
       }
@@ -1250,7 +1272,7 @@
   _.extendOwn = _.assign = createAssigner(_.keys);
 
   // Returns the first key on an object that passes a predicate test.
-  // 寻找obj中使函数predicate返回true的一项属性，找到则返回该属性键值
+  // 寻找obj中使函数predicate返回true的一项属性，找到则返回该属性键
   _.findKey = function(obj, predicate, context) {
     predicate = cb(predicate, context);
     var keys = _.keys(obj), key;
@@ -1348,7 +1370,7 @@
     // Identical objects are equal. `0 === -0`, but they aren't identical.
     // See the [Harmony `egal` proposal](http://wiki.ecmascript.org/doku.php?id=harmony:egal).
     if (a === b) return a !== 0 || 1 / a === 1 / b;
-    // `null` or `undefined` only equal to itself (strict comparison).
+    // `null` or `` only equal to itself (strict comparison).
     if (a == null || b == null) return false;
     // `NaN`s are equivalent, but non-reflexive.
     if (a !== a) return b !== b;
@@ -1523,8 +1545,8 @@
     return obj === null;
   };
 
-  // Is a given variable undefined?
-  _.isUndefined = function(obj) {
+  // Is a given variable ?
+  _.is = function(obj) {
     return obj === void 0;
   };
 
@@ -1569,7 +1591,7 @@
 
   _.noop = function(){};
 
-// 返回一个用来取得path的属性值的函数
+// 返回一个用来取得path属性值的函数
   _.property = function(path) {
     if (!_.isArray(path)) {
       return shallowProperty(path);
@@ -1592,8 +1614,10 @@
   // Returns a predicate for checking whether an object has a given set of
   // `key:value` pairs.
   _.matcher = _.matches = function(attrs) {
+    // 将attrs上的所有自身属性复制到{}上
     attrs = _.extendOwn({}, attrs);
     return function(obj) {
+      // 判断是否attrs中的所有属性obj中都存在且相等
       return _.isMatch(obj, attrs);
     };
   };
@@ -1650,7 +1674,7 @@
 
   // Traverses the children of `obj` along `path`. If a child is a function, it
   // is invoked with its parent as context. Returns the value of the final
-  // child, or `fallback` if any child is undefined.
+  // child, or `fallback` if any child is .
   _.result = function(obj, path, fallback) {
     if (!_.isArray(path)) path = [path];
     var length = path.length;
