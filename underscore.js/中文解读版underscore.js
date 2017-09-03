@@ -1188,7 +1188,7 @@
 
   // 函数节流
   // func: 需要被节流的函数
-  // wait: 执行的时间间隔，如果在wait的时间间隔内再次调用，则会覆盖前一次的调用，即前一次的调用不会被执行
+  // wait: 执行的时间间隔
   _.throttle = function(func, wait, options) {
     var timeout, context, args, result;
     var previous = 0;
@@ -1236,14 +1236,16 @@
   // leading edge, instead of the trailing.
   _.debounce = function(func, wait, immediate) {
     var timeout, result;
-
+    // 将要执行的函数进行封装，只要一执行， timeout就为null
     var later = function(context, args) {
       timeout = null;
       if (args) result = func.apply(context, args);
     };
 
     var debounced = restArgs(function(args) {
+      // 只要timeout不为null, 就清除定时器
       if (timeout) clearTimeout(timeout);
+      // 如果传入immediate为true,
       if (immediate) {
         var callNow = !timeout;
         timeout = setTimeout(later, wait);
@@ -1254,7 +1256,7 @@
 
       return result;
     });
-
+    // 清除定时器
     debounced.cancel = function() {
       clearTimeout(timeout);
       timeout = null;
@@ -1266,6 +1268,7 @@
   // Returns the first function passed as an argument to the second,
   // allowing you to adjust arguments, run code before and after, and
   // conditionally execute the original function.
+  // 返回一个函数， 该函数将func作为它的第一个参数，执行该函数相当于执行 wrapper(func){...}
   _.wrap = function(func, wrapper) {
     return _.partial(wrapper, func);
   };
@@ -1280,6 +1283,8 @@
 
   // Returns a function that is the composition of a list of functions, each
   // consuming the return value of the function that follows.
+  // 返回函数集 functions 组合后的复合函数, 也就是一个函数执行完之后把返回的结果再作为参数赋给下一个函数来执行. 以此类推.
+  // 在数学里, 把函数 f(), g(), 和 h() 组合起来可以得到复合函数 f(g(h()))。
   _.compose = function() {
     var args = arguments;
     var start = args.length - 1;
@@ -1292,6 +1297,7 @@
   };
 
   // Returns a function that will only be executed on and after the Nth call.
+  // 返回一个函数，该函数只有调用了times次后，才会调用func
   _.after = function(times, func) {
     return function() {
       if (--times < 1) {
@@ -1301,6 +1307,7 @@
   };
 
   // Returns a function that will only be executed up to (but not including) the Nth call.
+  // 返回一个函数，该函数只会调用times-1次，最后一次的调用结果将会被记住并返回
   _.before = function(times, func) {
     var memo;
     return function() {
@@ -1314,6 +1321,7 @@
 
   // Returns a function that will be executed at most one time, no matter how
   // often you call it. Useful for lazy initialization.
+  // 创建一个只会调用一次的函数
   _.once = _.partial(_.before, 2);
 
   _.restArgs = restArgs;
@@ -1322,6 +1330,7 @@
   // ----------------
 
   // Keys in IE < 9 that won't be iterated by `for key in ...` and thus missed.
+  // 以此判断是否在IE9以下的浏览器中
   var hasEnumBug = !{toString: null}.propertyIsEnumerable('toString');
   var nonEnumerableProps = ['valueOf', 'isPrototypeOf', 'toString',
                       'propertyIsEnumerable', 'hasOwnProperty', 'toLocaleString'];
@@ -1385,6 +1394,7 @@
 
   // Returns the results of applying the iteratee to each element of the object.
   // In contrast to _.map it returns an object.
+  // 和map作用类似，但它返回的是一个对象
   _.mapObject = function(obj, iteratee, context) {
     iteratee = cb(iteratee, context);
     var keys = _.keys(obj),
@@ -1399,6 +1409,8 @@
 
   // Convert an object into a list of `[key, value]` pairs.
   // The opposite of _.object.
+  // 将一个对象转化为键值对的数组，如：
+  // {a:1, b:2} => [[a,1],[b,2]]
   _.pairs = function(obj) {
     var keys = _.keys(obj);
     var length = keys.length;
@@ -1410,6 +1422,8 @@
   };
 
   // Invert the keys and values of an object. The values must be serializable.
+  // 返回一个object副本，使其键（keys）和值（values）对换。
+  // 对于这个操作，必须确保object里所有的值都是唯一的且可以序列化成字符串.
   _.invert = function(obj) {
     var result = {};
     var keys = _.keys(obj);
@@ -1421,6 +1435,8 @@
 
   // Return a sorted list of the function names available on the object.
   // Aliased as `methods`.
+  // 返回一个对象里的所有方法名
+  // 且返回的数组已经排序
   _.functions = _.methods = function(obj) {
     var names = [];
     for (var key in obj) {
@@ -1433,7 +1449,7 @@
   // 下面三个方法的的工厂函数
   // _.extend = createAssigner(_.allKeys); 复制所有attrs对象及其原型上的所有可枚举属性
   // _.extendOwn = _.assign = createAssigner(_.keys);复制attrs自身对象上的所有可枚举属性
-  // _.defaults = createAssigner(_.allKeys, true);同_.extend,区别在于后面的是否会覆盖前面的属性
+  // _.defaults = createAssigner(_.allKeys, true);同_.extend,区别在于后面的不会覆盖前面赋值的属性
   var createAssigner = function(keysFunc, defaults) {
     return function(obj) {
       var length = arguments.length;
@@ -1449,7 +1465,7 @@
         for (var i = 0; i < l; i++) {
           var key = keys[i];
           // 如果default为false或者没有传入default,一定会给obj[key]赋值
-          // 若default为true, 那么如果该属性等于，则会赋值，不为则不会赋值
+          // 若default为true, 那么如果该属性等于undefined，则会赋值，否则不会赋值
           // 此是为了兼顾_.default方法，传入default参数，决定后面的属性是否会覆盖前面相同的属性
           if (!defaults || obj[key] === void 0) obj[key] = source[key];
         }
@@ -1477,11 +1493,22 @@
   };
 
   // Internal pick helper function to determine if `obj` has key `key`.
+ 
   var keyInObj = function(value, key, obj) {
+  // 此处延伸下关于in运算符
+  // 如果指定的属性存在于指定的对象中，则 in 运算符会返回 true。
+  // in右操作数必须是一个对象值。比如，可以是一个String包装对象，但不能是一个字符串原始值。例如：   
+  // var color1 = new String("green");
+  // "length" in color1 // 返回true
+  // var color2 = "coral";
+  // "length" in color2 // 报错(color2不是对象)
+  // 如果一个属性是从原型链上继承来的，in 运算符也会返回 true。例如：
+  // "toString" in {}; // 返回true
     return key in obj;
   };
 
   // Return a copy of the object only containing the whitelisted properties.
+  // 返回一个object副本，只过滤出keys(有效的键组成的数组)参数指定的属性值。或者接受一个判断函数，指定挑选哪个key。
   _.pick = restArgs(function(obj, keys) {
     var result = {}, iteratee = keys[0];
     if (obj == null) return result;
