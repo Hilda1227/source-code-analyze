@@ -814,25 +814,30 @@
   // 将传入的数据求并集，然后去重返回
   // 使用restArgs将传入的多个数组外加一层变成一个arrays数组
   _.union = restArgs(function(arrays) {
-    // 先将arrays去掉一层嵌套，得到多个数组的并集，然后去重，返回
+    // 先将arrays去掉一层嵌套，这样就得到多个数组的并集，然后去重，返回
     return _.uniq(flatten(arrays, true, true));
   });
 
   // Produce an array that contains every item shared between all the
   // passed-in arrays.
-  
+  // 返回多个数组的交集，去重后的副本
   _.intersection = function(array) {
     // 存储结果
     var result = [];
     // 参数个数
     var argsLength = arguments.length;
+    // 遍历第一个参数数组
     for (var i = 0, length = getLength(array); i < length; i++) {
       var item = array[i];
+      // 如果结果数组中已经包含这个值，则跳出此次循环，进入下一次循环
       if (_.contains(result, item)) continue;
       var j;
+      // 遍历剩余的参数数组
       for (j = 1; j < argsLength; j++) {
+        // 如果该数组里面不包含这项值，则跳出这个循环，不再遍历剩下的数组
         if (!_.contains(arguments[j], item)) break;
       }
+      // 如果j === argsLength，则说明遍历完成，此项值是所数组的交集
       if (j === argsLength) result.push(item);
     }
     return result;
@@ -844,6 +849,7 @@
   _.difference = restArgs(function(array, rest) {
     // 将rest参数去掉一层嵌套 目的是可以将[[1,2],[3]]类型的数组转化成[1,2,3]形式的
     rest = flatten(rest, true, true);
+    // 遍历array 判断rest中是否包含此项， 不包含则返回true
     return _.filter(array, function(value){
       // 返回array中rest里面没有的元素
       return !_.contains(rest, value);
@@ -852,11 +858,17 @@
 
   // Complement of _.zip. Unzip accepts an array of arrays and groups
   // each array's elements on shared indices.
+  // _.unzip([['moe', 'larry', 'curly'], [30, 40, 50], [true, false, false]]);
+  // =>["moe", 30, true], ["larry", 40, false], ["curly", 50, false]
   _.unzip = function(array) {
+    // 如果array存在，则将其赋值为array里面length属性最大的length值，否则赋值为0
     var length = array && _.max(array, getLength).length || 0;
+    // 新建一个数组用来保存结果
     var result = Array(length);
 
     for (var index = 0; index < length; index++) {
+      // _.pluck(array, index)将返回array里面每一项的index索引的值
+      // 然后再赋值给result[index],如此就完成了值的合并
       result[index] = _.pluck(array, index);
     }
     return result;
@@ -864,14 +876,26 @@
 
   // Zip together multiple lists into a single array -- elements that share
   // an index go together.
+  // _.zip(['moe', 'larry', 'curly'], [30, 40, 50], [true, false, false]);
+  // => [["moe", 30, true], ["larry", 40, false], ["curly", 50, false]]
+  // 个人感觉这样来理解好一点，_.unzip与_.zip的差别是：
+  // _.unzip传入的是一个数组，里面包含了需要分项合并的各项数组
+  // _.zip则直接分开传入需要合并的各项数组
+  // 可以看到，他们实现的差别只是_.zip多了一层restArgs，来合并参数而已
   _.zip = restArgs(_.unzip);
 
   // Converts lists into objects. Pass either a single array of `[key, value]`
   // pairs, or two parallel arrays of the same length -- one of keys, and one of
   // the corresponding values. Passing by pairs is the reverse of _.pairs.
+  // 将数组转化为对象
+  // _.object([1,2,3,4,5],[1,2,3,4])
+  // => {1: 1, 2: 2, 3: 3, 4: 4, 5: undefined}
+  // _.object([1,2],[3,4])
+  // => {1: 3, 2: 4}
   _.object = function(list, values) {
     var result = {};
     for (var i = 0, length = getLength(list); i < length; i++) {
+      // 如果存在第二个参数
       if (values) {
         result[list[i]] = values[i];
       } else {
@@ -977,15 +1001,34 @@
   // Generate an integer Array containing an arithmetic progression. A port of
   // the native Python `range()` function. See
   // [the Python documentation](http://docs.python.org/library/functions.html#range).
+  // 一个用来创建整数灵活编号的列表的函数，便于each 和 map循环。
+  // 如果省略start则默认为 0；step 默认为 1.返回一个从start 到stop的整数的列表，用step来增加 （或减少）独占。
+  // 值得注意的是，如果stop值在start前面（也就是stop值小于start值），那么值域会被认为是零长度，而不是负增长。
+  // 如果你要一个负数的值域 ，请使用负数step.
+
+  // _.range(10);
+  // => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+  // _.range(1, 11);
+  // => [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+  // _.range(0, 30, 5);
+  // => [0, 5, 10, 15, 20, 25]
+  // _.range(0, -10, -1);
+  // => [0, -1, -2, -3, -4, -5, -6, -7, -8, -9]
+  // _.range(0);
+  // => [] 
+  // 此处引用自 http://www.css88.com/doc/underscore1.8.2/#range
   _.range = function(start, stop, step) {
     if (stop == null) {
+      // 如果没有传入stop 那么就将start作为stop,start置为0
       stop = start || 0;
       start = 0;
     }
+    // 如果step不存在或为0，那么就根据stop < start的结果决定将step置为-1或1
     if (!step) {
       step = stop < start ? -1 : 1;
     }
-
+    // Math.ceil(x)返回大于参数x的最小整数
+    // length为要返回的数组长度
     var length = Math.max(Math.ceil((stop - start) / step), 0);
     var range = Array(length);
 
@@ -998,6 +1041,8 @@
 
   // Split an **array** into several arrays containing **count** or less elements
   // of initial array.
+  // 将数组分割成几个数组，每个数组含有指定个数count或更少的元素
+  // 若未传入有效的count，则返回一个空数组 
   _.chunk = function(array, count) {
     if (count == null || count < 1) return [];
 
@@ -1009,25 +1054,49 @@
     return result;
   };
 
+  // ---------函数部分---------
   // Function (ahem) Functions
   // ------------------
 
   // Determines whether to execute a function as a constructor
   // or a normal function with the provided arguments.
+  // 决定是否作为一个构造函数去执行，或者一作为个带有所提供的参数的普通函数执行
+  // 要针对的是为了将函数调用模式更改为构造器调用和方法调用。
+  // sourceFunc：原函数，待绑定函数
+  // boundFunc： 绑定后函数
+  // context：需要让函数绑定的上下文
+  // callingContext：调用bound函数时的上下文，即this
+  // args：绑定后的函数执行所需参数
   var executeBound = function(sourceFunc, boundFunc, context, callingContext, args) {
+    // 无new调用
+    // 如果上下文不是boundFunc的实例，即不是new调用 返回原函数以context为上下文调用的结果
     if (!(callingContext instanceof boundFunc)) return sourceFunc.apply(context, args);
+    // new调用
+    // 创建一个对象，该对象以原函数的原型对象为原型
     var self = baseCreate(sourceFunc.prototype);
+    // 以该对象为上下文调用原函数
     var result = sourceFunc.apply(self, args);
+    // 如果调用结果是对象则返回该对象
     if (_.isObject(result)) return result;
+    // 否则返回上面创建的新对象
     return self;
   };
 
   // Create a function bound to a given object (assigning `this`, and arguments,
   // optionally). Delegates to **ECMAScript 5**'s native `Function.bind` if
   // available.
+  // 绑定函数 function 到对象 object 上, 也就是无论何时调用函数, 函数里的 this 都指向这个 object.
+  // 任意可选参数 arguments 可以传递给函数 function , 可以填充函数所需要的参数,这也被称为 partial application。
+  // 对于没有结合上下文的partial application绑定，请使用partial。 
+  // (愚人码头注：partial application翻译成“部分应用”或者“偏函数应用”。partial application可以被描述为一个函数，
+  // 它接受一定数目的参数，绑定值到一个或多个这些参数，并返回一个新的函数，这个返回函数只接受剩余未绑定值的参数
+  // 引用自 http://www.css88.com/doc/underscore1.8.2/#range
   _.bind = restArgs(function(func, context, args) {
+    // 如果func不是一个函数，抛出错误
     if (!_.isFunction(func)) throw new TypeError('Bind must be called on a function');
+    // bound等于一个将参数rest化后的函数
     var bound = restArgs(function(callArgs) {
+      // func: 原函数，bound: 绑定后的函数，context:绑定后函数的上下文, this: 绑定后函数的上下文, args.concat(callArgs): 函数的所有参数
       return executeBound(func, bound, context, this, args.concat(callArgs));
     });
     return bound;
@@ -1037,26 +1106,34 @@
   // arguments pre-filled, without changing its dynamic `this` context. _ acts
   // as a placeholder by default, allowing any combination of arguments to be
   // pre-filled. Set `_.partial.placeholder` for a custom placeholder argument.
+  // 先传入部分参数， 可用 _ 做占位符，等到调用所返回的函数时，再用后面传入的参数填充占位符，剩下的则追加在后面
+  // 可以理解为函数柯里化，增加了占位符的功能
   _.partial = restArgs(function(func, boundArgs) {
     var placeholder = _.partial.placeholder;
     var bound = function() {
       var position = 0, length = boundArgs.length;
       var args = Array(length);
+      // 如果是占位符，则赋值为对应的bound传入的参数， 否则赋值为boundArgs对应位置的参数
       for (var i = 0; i < length; i++) {
         args[i] = boundArgs[i] === placeholder ? arguments[position++] : boundArgs[i];
       }
+      // 如果bound传入的参数还有剩余的，则将剩下的全部追加在后面
       while (position < arguments.length) args.push(arguments[position++]);
       return executeBound(func, bound, this, this, args);
     };
     return bound;
   });
-
+  // 总的实现思路大概就是拼参数，然后apply调用
+  // 供用户可自定义占位符
   _.partial.placeholder = _;
 
   // Bind a number of an object's methods to that object. Remaining arguments
   // are the method names to be bound. Useful for ensuring that all callbacks
   // defined on an object belong to it.
+  // 给keys里面的多个函数方法绑定到同一个obj上下文
+  // 先用restArgs()将obj后面的参数rest化
   _.bindAll = restArgs(function(obj, keys) {
+    // 将keys深层解嵌套
     keys = flatten(keys, false, false);
     var index = keys.length;
     if (index < 1) throw new Error('bindAll must be passed function names');
@@ -1067,19 +1144,28 @@
   });
 
   // Memoize an expensive function by storing its results.
+  // Memoizes方法可以缓存某函数的计算结果
+  // 如果传递了 hashFunction 参数，就用 hashFunction 的返回值作为key存储函数的计算结果
   _.memoize = function(func, hasher) {
     var memoize = function(key) {
       var cache = memoize.cache;
+      // 如果传入了hasher函数，则用hasher来生成key值， 否则就用穿入的key做键值
       var address = '' + (hasher ? hasher.apply(this, arguments) : key);
+      // 如果cache里面没有这个键值， 则重新计算 并给cache里面该键赋值
       if (!_.has(cache, address)) cache[address] = func.apply(this, arguments);
+      // 返回cache里面的该值
       return cache[address];
     };
+    // 将 memoize.cache初始化为一个空对象
     memoize.cache = {};
     return memoize;
   };
+  // 此处推荐韩子尺的这篇:从斐波那契数列求值优化谈 _.memoize 方法 ,地址：https://toutiao.io/posts/fscssn/preview
 
   // Delays a function for the given number of milliseconds, and then calls
   // it with the arguments supplied.
+  // 延迟调用func，直到到达了指定时间并且当前调用栈已经为空为止，
+  // func之后的参数将作为func的参数调用
   _.delay = restArgs(function(func, wait, args) {
     return setTimeout(function() {
       return func.apply(null, args);
@@ -1088,6 +1174,10 @@
 
   // Defers a function, scheduling it to run after the current call stack has
   // cleared.
+  // _.defer(func, args, ......) 
+  // fanc: 用于填充delay后面的占位符
+  // 剩下的参数会被补充到 1 后面
+  // 返回的函数 相当于执行的就是 _.delay(func, 1, args)， 即将func延迟一秒执行
   _.defer = _.partial(_.delay, _, 1);
 
   // Returns a function, that, when invoked, will only be triggered at most once
@@ -1095,6 +1185,10 @@
   // as much as it can, without ever going more than once per `wait` duration;
   // but if you'd like to disable the execution on the leading edge, pass
   // `{leading: false}`. To disable execution on the trailing edge, ditto.
+
+  // 函数节流
+  // func: 需要被节流的函数
+  // wait: 执行的时间间隔，如果在wait的时间间隔内再次调用，则会覆盖前一次的调用，即前一次的调用不会被执行
   _.throttle = function(func, wait, options) {
     var timeout, context, args, result;
     var previous = 0;
@@ -1177,8 +1271,7 @@
   };
 
   // Returns a negated version of the passed-in predicate.
-  // 返回一个函数，如果predicate判断为不符合则返回true,否则返回false
-  // 相当于与predicate相反的判断
+  // 返回一个函数，该函数执行结果与传入的predicate函数执行结果相反
   _.negate = function(predicate) {
     return function() {
       return !predicate.apply(this, arguments);
