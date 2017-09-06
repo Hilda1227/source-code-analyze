@@ -1195,29 +1195,41 @@
     if (!options) options = {};
 
     var later = function() {
+      // options.leading === false，previous等于0， 否则等于现在的时间戳
       previous = options.leading === false ? 0 : _.now();
+      // timeout置空
       timeout = null;
+      // 调用func， 结果赋值给result
       result = func.apply(context, args);
-      if (!timeout) context = args = null;
+      //貌似多余的判断， context, args置空
+     /* if (!timeout) */context = args = null;
     };
 
     var throttled = function() {
+      // 现在的时间点
       var now = _.now();
+      // 如果previous等于0并且options.leading === false，把现在的时间点赋值给previous
       if (!previous && options.leading === false) previous = now;
+      // 剩下的需要等的时间，previous代表上次执行的时间
       var remaining = wait - (now - previous);
-      context = this;
-      args = arguments;
+      // context = this;
+      // args = arguments;
+      // 可以执行的条件
       if (remaining <= 0 || remaining > wait) {
+        // 如果timeout存在，则清空定时器，timeout置空
         if (timeout) {
           clearTimeout(timeout);
           timeout = null;
         }
+        // 更新previous
         previous = now;
+        // 执行func将结果赋给result
         result = func.apply(context, args);
-        if (!timeout) context = args = null;
-      } else if (!timeout && options.trailing !== false) {
-        timeout = setTimeout(later, remaining);
-      }
+        // 多余的判断， context, args置空
+      /*  if (!timeout)*/ context = args = null;
+      // } else if (!timeout && options.trailing !== false) {
+      //   timeout = setTimeout(later, remaining);
+      // }
       return result;
     };
 
@@ -1454,7 +1466,7 @@
     return function(obj) {
       var length = arguments.length;
       if (defaults) obj = Object(obj);
-      // 如果参数个数小于2或者obj为空， 则返回原函数
+      // 如果参数个数小于2或者obj为空， 则返回原对象
       if (length < 2 || obj == null) return obj;
       // 遍历除第一个参数后面的所有参数，
       for (var index = 1; index < length; index++) {
@@ -1511,35 +1523,52 @@
   // 返回一个object副本，只过滤出keys(有效的键组成的数组)参数指定的属性值。或者接受一个判断函数，指定挑选哪个key。
   _.pick = restArgs(function(obj, keys) {
     var result = {}, iteratee = keys[0];
+    // 如果obj为空， 则返回一个空对象
     if (obj == null) return result;
+    // 如果iteratee是一个函数
     if (_.isFunction(iteratee)) {
+      // 对iteratee进行优化
       if (keys.length > 1) iteratee = optimizeCb(iteratee, keys[1]);
+      // 拿到obj对象上（包括原型对象的）的所有可枚举属性，赋值给keys
       keys = _.allKeys(obj);
     } else {
+      // 如果iteratee不是一个函数
       iteratee = keyInObj;
+      // 对传入的keys深层解嵌套 ！！！注意了，两种情况，keys赋的值不是一个东西
       keys = flatten(keys, false, false);
       obj = Object(obj);
     }
     for (var i = 0, length = keys.length; i < length; i++) {
       var key = keys[i];
       var value = obj[key];
+      // 如果iteratee返回true，就将该属性复制给result
+      // iteratee返回true，即obj中的属性使iteratee，
+      // 或者，只需要keys中指定的属性，在obj中存在
       if (iteratee(value, key, obj)) result[key] = value;
     }
     return result;
   });
 
   // Return a copy of the object without the blacklisted properties.
+  // 与_.pick作用相反
+  // 返回一个object副本，只过滤出除去keys(有效的键组成的数组)参数指定的属性值。
+  // 或者接受一个判断函数，指定忽略哪个key。
   _.omit = restArgs(function(obj, keys) {
     var iteratee = keys[0], context;
     if (_.isFunction(iteratee)) {
+      // 如果iteratee是函数， 将它转化为执行结果相反的函数
       iteratee = _.negate(iteratee);
+      // 如果有3个参数， 则第3个作为上下文
       if (keys.length > 1) context = keys[1];
     } else {
+      // 如果iteratee不是函数，则将keys深层解嵌套后全部转化为字符串
       keys = _.map(flatten(keys, false, false), String);
+      // iteratee赋值为一个函数，如果keys里面不包含传入的key,则返回true, 包含则返回false
       iteratee = function(value, key) {
         return !_.contains(keys, key);
       };
     }
+    // 从obj中挑选出使使iteratee返回true的属性
     return _.pick(obj, iteratee, context);
   });
 
@@ -1558,13 +1587,16 @@
   // Create a (shallow-cloned) duplicate of an object.
   // 
   _.clone = function(obj) {
+    // 如果obj不是一个对象， 则返回原obj 
     if (!_.isObject(obj)) return obj;
+    // 如果是数组的话，用slice复制一个新数组，否则返回将obj的属性复制到了{}上的对象
     return _.isArray(obj) ? obj.slice() : _.extend({}, obj);
   };
 
   // Invokes interceptor with the obj, and then returns obj.
   // The primary purpose of this method is to "tap into" a method chain, in
   // order to perform operations on intermediate results within the chain.
+  // 将obj作为interceptor的参数调用，并返回obj
   _.tap = function(obj, interceptor) {
     interceptor(obj);
     return obj;
@@ -1591,10 +1623,13 @@
   eq = function(a, b, aStack, bStack) {
     // Identical objects are equal. `0 === -0`, but they aren't identical.
     // See the [Harmony `egal` proposal](http://wiki.ecmascript.org/doku.php?id=harmony:egal).
+    // 如果a===b, 1：有可能真的全等，2：也可能是+0 === -0，此时1/+0 !== 1/-0,所以这种情况应判断为不等
     if (a === b) return a !== 0 || 1 / a === 1 / b;
     // `null` or `` only equal to itself (strict comparison).
+    
     if (a == null || b == null) return false;
     // `NaN`s are equivalent, but non-reflexive.
+    // 如果两者都不等于自身， 则他们的值都为NaN,判断为相等
     if (a !== a) return b !== b;
     // Exhaust primitive checks
     var type = typeof a;
@@ -1605,11 +1640,14 @@
   // Internal recursive comparison function for `isEqual`.
   deepEq = function(a, b, aStack, bStack) {
     // Unwrap any wrapped objects.
+    // 如果a和b是_的实例对象， a b赋值为其_wrapped属性值
     if (a instanceof _) a = a._wrapped;
     if (b instanceof _) b = b._wrapped;
     // Compare `[[Class]]` names.
+    // 如果类型不同， 则返回false
     var className = toString.call(a);
     if (className !== toString.call(b)) return false;
+    // 后面的情况类型则一定相等
     switch (className) {
       // Strings, numbers, regular expressions, dates, and booleans are compared by value.
       case '[object RegExp]':
@@ -1617,10 +1655,13 @@
       case '[object String]':
         // Primitives and their corresponding object wrappers are equivalent; thus, `"5"` is
         // equivalent to `new String("5")`.
+        // 如果是 RegExp或者String类型
+        // 转化为String类型后再 === 比较
         return '' + a === '' + b;
       case '[object Number]':
         // `NaN`s are equivalent, but non-reflexive.
         // Object(NaN) is equivalent to NaN.
+        // 如果a为NaN,则如果b也为NaN,就返回相等，否则不等
         if (+a !== +a) return +b !== +b;
         // An `egal` comparison is performed for other numeric values.
         return +a === 0 ? 1 / +a === 1 / b : +a === +b;
@@ -1635,6 +1676,7 @@
     }
 
     var areArrays = className === '[object Array]';
+    // 如果不是数组
     if (!areArrays) {
       if (typeof a != 'object' || typeof b != 'object') return false;
 
@@ -1652,6 +1694,7 @@
 
     // Initializing stack of traversed objects.
     // It's done here since we only need them for objects and arrays comparison.
+    // 传了aStack则等于传入的， 没传就等于一个空数组
     aStack = aStack || [];
     bStack = bStack || [];
     var length = aStack.length;
@@ -1666,8 +1709,10 @@
     bStack.push(b);
 
     // Recursively compare objects and arrays.
+    // 如果是数组
     if (areArrays) {
       // Compare array lengths to determine if a deep comparison is necessary.
+      // 如果长度不等则不必再做比较， 直接返回false
       length = a.length;
       if (length !== b.length) return false;
       // Deep compare the contents, ignoring non-numeric properties.
@@ -1748,6 +1793,7 @@
 
   // Is a given object a finite number?
   _.isFinite = function(obj) {
+    // 不是NaN 并且 是有穷的， 这个_.isSymbol哪儿跑出来的？
     return !_.isSymbol(obj) && isFinite(obj) && !isNaN(parseFloat(obj));
   };
 
@@ -1758,23 +1804,26 @@
   };
 
   // Is a given value a boolean?
+  // 判断obj是否是布尔值
   _.isBoolean = function(obj) {
     return obj === true || obj === false || toString.call(obj) === '[object Boolean]';
   };
 
   // Is a given value equal to null?
+  // 判断是否是null
   _.isNull = function(obj) {
     return obj === null;
   };
 
   // Is a given variable ?
+  // 判断是否是一个已经声明，但未赋值，或赋值为undefined的变量
   _.is = function(obj) {
     return obj === void 0;
   };
 
   // Shortcut function for checking if an object has a given property directly
   // on itself (in other words, not on a prototype).
-
+ // 判断对象是否有某个属性
   _.has = function(obj, path) {
     // 浅层属性
     if (!_.isArray(path)) {
@@ -1792,31 +1841,46 @@
     return !!length;
   };
 
+ // -------工具类方法------
   // Utility Functions
   // -----------------
 
   // Run Underscore.js in *noConflict* mode, returning the `_` variable to its
   // previous owner. Returns a reference to the Underscore object.
+  // 如果全局环境中已经使用了 `_` 变量
+  // 可以用该方法返回其他变量
+  // 继续使用 underscore 中的方法
+  // var underscore = _.noConflict();
+  // underscore.each(..);
+
+  // 来理一下  _ 是一个函数， 整个框架内部所有提供给用户的方法都是赋值给 _ 的属性的， 函数 _ 是全局变量 _ 的值
+  // 调用 _.noConflict，返回 _ 函数，结果赋值给其他变量
+  // 那么我们就有办法通过这个变量继续拿到 _ 函数， 并拿到 _ 函数上的属性值啦
   _.noConflict = function() {
+    // 为啥感觉这步有点多余呢# #， 还有上面那步 var previousUnderscore = root._ 存着有啥用？;
     root._ = previousUnderscore;
     return this;
   };
 
   // Keep the identity function around for default iteratees.
+  // 直接返回传入的值，整个框架只有两个地方用到了
+  // 1：cb函数里， 为了即使没有传入迭代函数，也能返回一个函数， 就是它啦
+  // 2：_.toArray里面， 为了通过_.map迭代，而将类数组转化为数组
   _.identity = function(value) {
     return value;
   };
 
   // Predicate-generating functions. Often useful outside of Underscore.
+  // 返回一个函数， 该函数返回传入的原值
   _.constant = function(value) {
     return function() {
       return value;
     };
   };
-
+  // 一个空函数
   _.noop = function(){};
 
-// 返回一个用来取得path属性值的函数
+// 返回一个函数，该函数用来取得path属性值
   _.property = function(path) {
     if (!_.isArray(path)) {
       return shallowProperty(path);
@@ -1828,9 +1892,12 @@
 
   // Generates a function for a given object that returns a given property.
   _.propertyOf = function(obj) {
+    // 如果对象为空， 返回一个空函数
     if (obj == null) {
       return function(){};
     }
+    // 否则返回一个函数，给该函数传入path参数，返回obj里面的path属性
+    // 如果path不是数组， 直接返回obj[path], 否则返回obj的深层path属性
     return function(path) {
       return !_.isArray(path) ? obj[path] : deepGet(obj, path);
     };
@@ -1848,6 +1915,7 @@
   };
 
   // Run a function **n** times.
+  // 执行一个函数n次，将每次的执行结果存入数组里返回
   _.times = function(n, iteratee, context) {
     var accum = Array(Math.max(0, n));
     iteratee = optimizeCb(iteratee, context, 1);
@@ -1864,15 +1932,18 @@
       min = 0;
     }
     // Math.floor：返回一个与该浮点数最接近的整数
+    // 为啥要加个1勒？
     return min + Math.floor(Math.random() * (max - min + 1));
   };
 
   // A (possibly faster) way to get the current timestamp as an integer.
+  // 调用返回一个当前时间的时间戳
   _.now = Date.now || function() {
     return new Date().getTime();
   };
 
   // List of HTML entities for escaping.
+  // html预留字符 与其对应的实体编码
   var escapeMap = {
     '&': '&amp;',
     '<': '&lt;',
@@ -1881,14 +1952,18 @@
     "'": '&#x27;',
     '`': '&#x60;'
   };
+  // 将escapeMap键值对反转，用于解码
   var unescapeMap = _.invert(escapeMap);
 
   // Functions for escaping and unescaping strings to/from HTML interpolation.
+  // 返回一个函数,向该函数传入字符串，能返回对应的html预留字符，或其实体编码
   var createEscaper = function(map) {
+    // 该函数返回map的match变量属性值
     var escaper = function(match) {
       return map[match];
     };
     // Regexes for identifying a key that needs to be escaped.
+    // 构造一个正则表达式，如RegExp((?:&|<|>|"|'|`))或者RegExp((?:&amp;|&lt;|&gt;|&quot;|&#x27;|&#x60;))
     var source = '(?:' + _.keys(map).join('|') + ')';
     var testRegexp = RegExp(source);
     var replaceRegexp = RegExp(source, 'g');
@@ -1897,24 +1972,35 @@
       return testRegexp.test(string) ? string.replace(replaceRegexp, escaper) : string;
     };
   };
+  // 用于编码,例如：
+  // _.escape(">")
+  // => "&gt;"
   _.escape = createEscaper(escapeMap);
+  // 用于解码，例如：
+  // _.unescape("&gt;")
+  // => ">"
   _.unescape = createEscaper(unescapeMap);
 
   // Traverses the children of `obj` along `path`. If a child is a function, it
   // is invoked with its parent as context. Returns the value of the final
   // child, or `fallback` if any child is .
+  // 如果对象 object 中的属性 property 是函数, 则调用它, 否则, 返回它。
   _.result = function(obj, path, fallback) {
     if (!_.isArray(path)) path = [path];
     var length = path.length;
+    // 如果path长度为0, fallback是函数的话返回fallback调用的结果，否则返回fallback原函数
     if (!length) {
       return _.isFunction(fallback) ? fallback.call(obj) : fallback;
     }
     for (var i = 0; i < length; i++) {
+
       var prop = obj == null ? void 0 : obj[path[i]];
+      // 如果该属性值为undefined，
       if (prop === void 0) {
         prop = fallback;
         i = length; // Ensure we don't continue iterating.
       }
+      // 如果对象 object 中的属性 property 是函数, 则调用它, 否则, 返回它。
       obj = _.isFunction(prop) ? prop.call(obj) : prop;
     }
     return obj;
@@ -1923,19 +2009,24 @@
   // Generate a unique integer id (unique within the entire client session).
   // Useful for temporary DOM ids.
   var idCounter = 0;
+  // 生成一个全局唯一的id。如果prefix参数存在将附加在id前面
   _.uniqueId = function(prefix) {
+    // 将 idCounter 加 1 然后转化为String类型
     var id = ++idCounter + '';
     return prefix ? prefix + id : id;
   };
 
   // By default, Underscore uses ERB-style template delimiters, change the
   // following template settings to use alternative delimiters.
+  // 1. <%  %> - to execute some code
+  // 2. <%= %> - to print some value in template
+  // 3. <%- %> - to print some values HTML escaped
   _.templateSettings = {
-    evaluate: /<%([\s\S]+?)%>/g,
-    interpolate: /<%=([\s\S]+?)%>/g,
-    escape: /<%-([\s\S]+?)%>/g
+    // 三种渲染模板
+    evaluate    : /<%([\s\S]+?)%>/g,
+    interpolate : /<%=([\s\S]+?)%>/g,
+    escape      : /<%-([\s\S]+?)%>/g
   };
-
   // When customizing `templateSettings`, if you don't want to define an
   // interpolation, evaluation or escaping regex, we need one that is
   // guaranteed not to match.
@@ -2097,4 +2188,5 @@
       return _;
     });
   }
+
 }());
