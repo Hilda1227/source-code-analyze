@@ -2030,22 +2030,32 @@
   // When customizing `templateSettings`, if you don't want to define an
   // interpolation, evaluation or escaping regex, we need one that is
   // guaranteed not to match.
+  // 
   var noMatch = /(.)^/;
 
   // Certain characters need to be escaped so that they can be put into a
   // string literal.
+  // 某些字符需要转义，以便将它们放入
+  // 字符串直接量。
   var escapes = {
-    "'": "'",
-    '\\': '\\',
-    '\r': 'r',
-    '\n': 'n',
-    '\u2028': 'u2028',
+    '\\': '\\',  // 反斜杠
+    '\r': 'r',   // 回车符
+    '\n': 'n',   // 换行符
+    '\u2028': 'u2028', // 四个十六进制数字表示的 Unicode 字符
     '\u2029': 'u2029'
   };
 
   var escapeRegExp = /\\|'|\r|\n|\u2028|\u2029/g;
 
   var escapeChar = function(match) {
+    /**
+      '      => \\'
+      \\     => \\\\
+      \r     => \\r
+      \n     => \\n
+      \u2028 => \\u2028
+      \u2029 => \\u2029
+    **/
     return '\\' + escapes[match];
   };
 
@@ -2053,13 +2063,18 @@
   // Underscore templating handles arbitrary delimiters, preserves whitespace,
   // and correctly escapes quotes within interpolated code.
   // NB: `oldSettings` only exists for backwards compatibility.
+  // http://www.css88.com/doc/underscore1.8.2/#template
+  // _.template(templateString, [settings]) 
   _.template = function(text, settings, oldSettings) {
+    // 设置模板字符串，以setting优先
     if (!settings && oldSettings) settings = oldSettings;
     settings = _.defaults({}, settings, _.templateSettings);
 
     // Combine delimiters into one regular expression via alternation.
+    // 正则表达式 pattern，用于正则匹配 text 字符串中的模板字符串
+    // /<%-([\s\S]+?)%>|<%=([\s\S]+?)%>|<%([\s\S]+?)%>|$/g
     var matcher = RegExp([
-      (settings.escape || noMatch).source,
+      (settings.escape || noMatch).source, // source 属性用于返回模式匹配所用的正则文本。
       (settings.interpolate || noMatch).source,
       (settings.evaluate || noMatch).source
     ].join('|') + '|$', 'g');
@@ -2067,11 +2082,20 @@
     // Compile the template source, escaping string literals appropriately.
     var index = 0;
     var source = "__p+='";
+    // text为_.template传入的模板字符串
+    // matcher: 模式串，
+    // match：匹配的子串，
+    // escape： 正则表达式中第一个圆括号匹配到的字符串
+    // interpolate： 正则表达式中第二个圆括号匹配到的字符串
+    // evaluate：正则表达式中第三个圆括号匹配到的字符串
+    // offset: 匹配到的子字符串在原字符串中的偏移量。（比如，如果原字符串是“abcd”，匹配到的子字符串是“bc”，那么这个参数将是1）
     text.replace(matcher, function(match, escape, interpolate, evaluate, offset) {
       source += text.slice(index, offset).replace(escapeRegExp, escapeChar);
       index = offset + match.length;
 
       if (escape) {
+        // 对变量进行编码（=> HTML 实体编码）
+        // 避免 XSS 攻击
         source += "'+\n((__t=(" + escape + "))==null?'':_.escape(__t))+\n'";
       } else if (interpolate) {
         source += "'+\n((__t=(" + interpolate + "))==null?'':__t)+\n'";
@@ -2146,11 +2170,15 @@
 
   // Add all mutator Array functions to the wrapper.
   _.each(['pop', 'push', 'reverse', 'shift', 'sort', 'splice', 'unshift'], function(name) {
+    // Array原型中的对应数组方法
     var method = ArrayProto[name];
+    // 将这些数组方法添加到underscore的原型对象中去
     _.prototype[name] = function() {
       var obj = this._wrapped;
       method.apply(obj, arguments);
+      // 如果是'shift'方法或者'splice'方法，并且长度为0, 就删除第一项的值，即变为undefined
       if ((name === 'shift' || name === 'splice') && obj.length === 0) delete obj[0];
+
       return chainResult(this, obj);
     };
   });
@@ -2159,6 +2187,7 @@
   _.each(['concat', 'join', 'slice'], function(name) {
     var method = ArrayProto[name];
     _.prototype[name] = function() {
+      // 如果调用该函数的对象_chain属性为true, 则返回_(this).chain(),否则返回method.apply(this._wrapped, arguments)的结果
       return chainResult(this, method.apply(this._wrapped, arguments));
     };
   });
