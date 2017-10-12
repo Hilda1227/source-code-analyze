@@ -16,18 +16,32 @@
     document = window.document,
     elementDisplay = {}, classCache = {},
     cssNumber = { 'column-count': 1, 'columns': 1, 'font-weight': 1, 'line-height': 1,'opacity': 1, 'z-index': 1, 'zoom': 1 },
+    // 分析该正则，分为如下几个部分：0或多个非空白字符开头 < 1或多个单词字符或者! 0或多个非>字符 >
+    // 所以最后匹配出的是代码中的第一个html标签,如: <h1><span>test</span></h1>匹配出<h1>, <!DOCTYPE html>匹配出<!DOCTYPE html>
     fragmentRE = /^\s*<(\w+|!)[^>]*>/,
+
+    // <开头 （1或多个单词字符） 0或多个空白字符 /零次或一次 > </ 第一个捕获组的内容 >结尾
+    //                                                     -------------------------
+    //                                                        或者没有这一部分，直接结尾
+    // 匹配的是<br/>这样的自闭和标签, 或者<h1></h1>这种没有子元素的标签
     singleTagRE = /^<(\w+)\s*\/?>(?:<\/\1>|)$/,
+
+    // < 非自闭和标签单词 单词字符或者:一或多个 非>字符0或多个 />   （忽略大小写，全局匹配
     tagExpanderRE = /<(?!area|br|col|embed|hr|img|input|link|meta|param)(([\w:]+)[^>]*)\/>/ig,
+    // 匹配body 或 html 忽略大小写
     rootNodeRE = /^(?:body|html)$/i,
+    // 匹配一个大写字母
     capitalRE = /([A-Z])/g,
 
     // special attributes that should be get/set via method calls
+    // 应该通过方法调用来设置/获取的特殊属性
     methodAttributes = ['val', 'css', 'html', 'text', 'data', 'width', 'height', 'offset'],
 
     adjacencyOperators = [ 'after', 'prepend', 'before', 'append' ],
     table = document.createElement('table'),
     tableRow = document.createElement('tr'),
+
+    // 指定一些特殊元素的容器
     containers = {
       'tr': document.createElement('tbody'),
       'tbody': table, 'thead': table, 'tfoot': table,
@@ -35,6 +49,7 @@
       '*': document.createElement('div')
     },
     readyRE = /complete|loaded|interactive/,
+    // 匹配单词字符和-零或多次
     simpleSelectorRE = /^[\w-]*$/,
     class2type = {},
     toString = class2type.toString,
@@ -55,18 +70,31 @@
       'frameborder': 'frameBorder',
       'contenteditable': 'contentEditable'
     },
+    // 一个判断是否是数组的函数
     isArray = Array.isArray ||
       function(object){ return object instanceof Array }
 
   zepto.matches = function(element, selector) {
+    // 如果element不是一个DOM节点或者selector不存在或为false，则立即返回false
     if (!selector || !element || element.nodeType !== 1) return false
+
+      // 如果元素将被指定的css选择器字符串选择，Element.matches()  方法返回true; 否则返回false。
+      // eg: <div id="foo">This is the element!</div>
+      //   <script type="text/javascript">
+      //   var el = document.getElementById("foo");
+      //   console.log(el.mozMatchesSelector("div")) => true
+      // </script>
+      // 一些浏览器使用了非标准名称来实现它，采用前缀+ matchesSelector()的方式。
     var matchesSelector = element.matches || element.webkitMatchesSelector ||
                           element.mozMatchesSelector || element.oMatchesSelector ||
                           element.matchesSelector
+    // 如果matchesSelector存在， 则返回element.matchesSelector(selector)执行的结果
     if (matchesSelector) return matchesSelector.call(element, selector)
     // fall back to performing a selector:
     var match, parent = element.parentNode, temp = !parent
+    // 如果parent不存在， 则将一个创建的div作为parent,插入到element当中去
     if (temp) (parent = tempParent).appendChild(element)
+    // 
     match = ~zepto.qsa(parent, selector).indexOf(element)
     temp && tempParent.removeChild(element)
     return match
