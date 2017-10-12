@@ -274,14 +274,7 @@
     // 我们传递给的 _.map 的第二个参数就是一个 iteratee，他可能是函数，对象，甚至是字符串，
     // 内置函数cb 会将其统一处理为一个函数
     iteratee = cb(iteratee, context);
-    // js中的|| 与 &&
-    // a && b : 将a, b转换为Boolean类型, 再执行逻辑与, true返回b, false返回a
-    // a || b : 将a, b转换为Boolean类型, 再执行逻辑或, true返回a, false返回b
-    // 转换规则:
-    // 对象为true
-    // 非零数字为true
-    // 非空字符串为true
-    // 其他为false
+    
     var keys = !isArrayLike(obj) && _.keys(obj),
         length = (keys || obj).length,
         results = Array(length);
@@ -639,7 +632,7 @@
       // Keep surrogate pair characters together
       return obj.match(reStrSymbol);
     }
-    // 如果是类数组 则遍历每一项，返回原来的数据， 组成一个数组
+    // 如果是类数组或数组 则遍历每一项，返回原来的数据， 组成一个新数组
     if (isArrayLike(obj)) return _.map(obj, _.identity);
     // 如果是对象 则返回一个由所有属性值组成的数组
     return _.values(obj);
@@ -1189,47 +1182,42 @@
   // 函数节流
   // func: 需要被节流的函数
   // wait: 执行的时间间隔
+  // 默认情况下，throttle将在你调用的第一时间尽快执行这个function，并且，如果你在wait周期内调用任意次数的函数，都将尽快的被覆盖。
+  // 如果你想禁用第一次首先执行的话，传递{leading: false}，
+  // 还有如果你想禁用最后一次执行的话，传递{trailing: false}。
   _.throttle = function(func, wait, options) {
     var timeout, context, args, result;
     var previous = 0;
     if (!options) options = {};
 
-    var later = function() {
-      // options.leading === false，previous等于0， 否则等于现在的时间戳
+    var later = function() { f 
       previous = options.leading === false ? 0 : _.now();
-      // timeout置空
       timeout = null;
-      // 调用func， 结果赋值给result
       result = func.apply(context, args);
-      //貌似多余的判断， context, args置空
-     /* if (!timeout) */context = args = null;
+      if (!timeout) context = args = null;
     };
 
     var throttled = function() {
-      // 现在的时间点
       var now = _.now();
-      // 如果previous等于0并且options.leading === false，把现在的时间点赋值给previous
       if (!previous && options.leading === false) previous = now;
-      // 剩下的需要等的时间，previous代表上次执行的时间
       var remaining = wait - (now - previous);
-      // context = this;
-      // args = arguments;
-      // 可以执行的条件
+      context = this;
+      args = arguments;
       if (remaining <= 0 || remaining > wait) {
-        // 如果timeout存在，则清空定时器，timeout置空
+        // 如果有定时器， 则立即清除
         if (timeout) {
           clearTimeout(timeout);
           timeout = null;
         }
-        // 更新previous
+        // 更新上次执行的时间
         previous = now;
-        // 执行func将结果赋给result
+        // 立即执行
         result = func.apply(context, args);
-        // 多余的判断， context, args置空
-      /*  if (!timeout)*/ context = args = null;
-      // } else if (!timeout && options.trailing !== false) {
-      //   timeout = setTimeout(later, remaining);
-      // }
+        // 清空上下文和参数
+        if (!timeout) context = args = null;
+      } else if (!timeout && options.trailing !== false) { // timeout为null && 未禁用最后一次执行
+        timeout = setTimeout(later, remaining);
+      }
       return result;
     };
 
@@ -1255,17 +1243,20 @@
     };
 
     var debounced = restArgs(function(args) {
-      // 只要timeout不为null, 就清除定时器
+      // 只要timeout不为null, 就清除上一个定时器
       if (timeout) clearTimeout(timeout);
       // 如果传入immediate为true,
-      if (immediate) {
+      if (immediate) {     
         var callNow = !timeout;
+        // 设置执行later的定时器
         timeout = setTimeout(later, wait);
+        // 并立即执行一次
         if (callNow) result = func.apply(this, args);
       } else {
+        // 如果immediate为false，则设置下一个执行later的定时器
         timeout = _.delay(later, wait, this, args);
       }
-
+      // 返回执行结果
       return result;
     });
     // 清除定时器
@@ -1273,7 +1264,6 @@
       clearTimeout(timeout);
       timeout = null;
     };
-
     return debounced;
   };
 
@@ -1857,7 +1847,13 @@
   // 调用 _.noConflict，返回 _ 函数，结果赋值给其他变量
   // 那么我们就有办法通过这个变量继续拿到 _ 函数， 并拿到 _ 函数上的属性值啦
   _.noConflict = function() {
-    // 为啥感觉这步有点多余呢# #， 还有上面那步 var previousUnderscore = root._ 存着有啥用？;
+    // 上面那步 var previousUnderscore = root._ ,将全局环境中已经存在的 _ 保存起来
+    // 这一步则将 _ 的使用权重新交给 外部变量， 避免外部的 _ 对象被覆盖
+    // 例如 :
+    // var _ = {name: "test"}
+    // var underscore = _.noConflict()  
+    // 这样一来外部的 _ 就不会被underscore的 _ 取代， this所指向的 _ 函数也返回赋值给了“underscore”
+    // 我们便可以通过underscore.xx,继续使用其方法
     root._ = previousUnderscore;
     return this;
   };
@@ -1866,6 +1862,8 @@
   // 直接返回传入的值，整个框架只有两个地方用到了
   // 1：cb函数里， 为了即使没有传入迭代函数，也能返回一个函数， 就是它啦
   // 2：_.toArray里面， 为了通过_.map迭代，而将类数组转化为数组
+  // 通过这个方法，现在我们想要复制一个数组的话 可以这样：
+  // var newAry = [1,2,3,4],map(_.identity);
   _.identity = function(value) {
     return value;
   };
@@ -1957,8 +1955,7 @@
 
   // Functions for escaping and unescaping strings to/from HTML interpolation.
   // 返回一个函数,向该函数传入字符串，能返回对应的html预留字符，或其实体编码
-  var createEscaper = function(map) {
-    // 该函数返回map的match变量属性值
+  var createEscaper = function(map) {    // 该函数返回map的match变量属性值
     var escaper = function(match) {
       return map[match];
     };
@@ -1993,7 +1990,6 @@
       return _.isFunction(fallback) ? fallback.call(obj) : fallback;
     }
     for (var i = 0; i < length; i++) {
-
       var prop = obj == null ? void 0 : obj[path[i]];
       // 如果该属性值为undefined，
       if (prop === void 0) {
@@ -2035,8 +2031,7 @@
 
   // Certain characters need to be escaped so that they can be put into a
   // string literal.
-  // 某些字符需要转义，以便将它们放入
-  // 字符串直接量。
+  // 某些字符需要转义，以便将它们放入字符串直接量。
   var escapes = {
     '\\': '\\',  // 反斜杠
     '\r': 'r',   // 回车符
@@ -2049,7 +2044,6 @@
 
   var escapeChar = function(match) {
     /**
-      '      => \\'
       \\     => \\\\
       \r     => \\r
       \n     => \\n
@@ -2063,19 +2057,22 @@
   // Underscore templating handles arbitrary delimiters, preserves whitespace,
   // and correctly escapes quotes within interpolated code.
   // NB: `oldSettings` only exists for backwards compatibility.
+  // 参考链接：
+  // https://github.com/hanzichi/underscore-analysis/issues/25
   // http://www.css88.com/doc/underscore1.8.2/#template
   // _.template(templateString, [settings]) 
   _.template = function(text, settings, oldSettings) {
-    // 设置模板字符串，以setting优先
+    
     if (!settings && oldSettings) settings = oldSettings;
+    // 设置模板字符串，以setting优先
     settings = _.defaults({}, settings, _.templateSettings);
 
     // Combine delimiters into one regular expression via alternation.
     // 正则表达式 pattern，用于正则匹配 text 字符串中的模板字符串
     // /<%-([\s\S]+?)%>|<%=([\s\S]+?)%>|<%([\s\S]+?)%>|$/g
     var matcher = RegExp([
-      (settings.escape || noMatch).source, // source 属性用于返回模式匹配所用的正则文本。
-      (settings.interpolate || noMatch).source,
+      (settings.escape || noMatch).source,      // source 属性用于返回模式匹配所用的正则文本。
+      (settings.interpolate || noMatch).source, // /<%([\s\S]+?)%>/g.source  => "<%([\s\S]+?)%>"
       (settings.evaluate || noMatch).source
     ].join('|') + '|$', 'g');
 
@@ -2084,13 +2081,15 @@
     var source = "__p+='";
     // text为_.template传入的模板字符串
     // matcher: 模式串，
-    // match：匹配的子串，
+    // match：该次匹配的子串，
     // escape： 正则表达式中第一个圆括号匹配到的字符串
     // interpolate： 正则表达式中第二个圆括号匹配到的字符串
     // evaluate：正则表达式中第三个圆括号匹配到的字符串
     // offset: 匹配到的子字符串在原字符串中的偏移量。（比如，如果原字符串是“abcd”，匹配到的子字符串是“bc”，那么这个参数将是1）
     text.replace(matcher, function(match, escape, interpolate, evaluate, offset) {
+      // 将转义字符替换掉
       source += text.slice(index, offset).replace(escapeRegExp, escapeChar);
+      // 调整下次拼接的开始位置
       index = offset + match.length;
 
       if (escape) {
@@ -2104,6 +2103,8 @@
       }
 
       // Adobe VMs need the match returned to produce the correct offset.
+      // 并不改变匹配到的字符串，直接返回原文本
+      // 此函数的作用是为了改变source值
       return match;
     });
     source += "';\n";
@@ -2135,11 +2136,10 @@
   };
 
   // Add a "chain" function. Start chaining a wrapped Underscore object.
-  _.chain = function(obj) {
-    var instance = _(obj);
-    instance._chain = true;
-    return instance;
-  };
+  
+   // 关于链式调用参考链接：
+  // https://zhuanlan.zhihu.com/p/27878899
+  // https://yoyoyohamapi.gitbooks.io/undersercore-analysis/content/supply/%E9%93%BE%E5%BC%8F%E8%B0%83%E7%94%A8.html
 
   // OOP
   // ---------------
@@ -2148,17 +2148,25 @@
   // underscore functions. Wrapped objects may be chained.
 
   // Helper function to continue chaining intermediate results.
+  // 根据instance的_chain属性，决定是否设置obj的_chain属性属性
   var chainResult = function(instance, obj) {
+    // 如果实例对象的_chain属性为true,即需要链式操作，则将执行结果(这里即obj)构造为underscore对象,
+    // 并调用chain()方法，使得可以继续后续的链式操作
+    // 否则直接返回obj
     return instance._chain ? _(obj).chain() : obj;
   };
 
   // Add your own custom functions to the Underscore object.
   _.mixin = function(obj) {
     _.each(_.functions(obj), function(name) {
+      // 将obj上的方法挂载到 _ 上
       var func = _[name] = obj[name];
+      // 
       _.prototype[name] = function() {
+        // 取出调用该函数的实例对象的wrap属性，将该属性值与调用时传入的参数合并为一个数组
         var args = [this._wrapped];
         push.apply(args, arguments);
+        // this: 调用对象     func.apply(_, args)： func函数执行结果
         return chainResult(this, func.apply(_, args));
       };
     });
@@ -2166,19 +2174,24 @@
   };
 
   // Add all of the Underscore functions to the wrapper object.
+  // _ 上挂载的所有方法经过_.mixin后
+  // 例如以前必须通过 var a = {a:1};  _.map(a), _.chain(a)形式调用的函数，
+  // 现在可以,var a = _({a:1});  a.map();  a.chain()的形式来调用, 这样就可以解释为什么chainResult函数
+  // 中可以 _(obj).chain()这样来写了
   _.mixin(_);
 
   // Add all mutator Array functions to the wrapper.
   _.each(['pop', 'push', 'reverse', 'shift', 'sort', 'splice', 'unshift'], function(name) {
     // Array原型中的对应数组方法
     var method = ArrayProto[name];
-    // 将这些数组方法添加到underscore的原型对象中去
+    // 将这些原生数组方法添加到underscore的原型对象中去
     _.prototype[name] = function() {
       var obj = this._wrapped;
       method.apply(obj, arguments);
-      // 如果是'shift'方法或者'splice'方法，并且长度为0, 就删除第一项的值，即变为undefined
+      // 如果是'shift'方法或者'splice'方法，并且实例对象的length属性为0, 就删除第一项的值，即变为undefined
       if ((name === 'shift' || name === 'splice') && obj.length === 0) delete obj[0];
-
+      // 如果this指向的实例对象 _chain属性为true 则将obj构造为可链式调用的underscore对象并返回
+      // 否则返回原obj
       return chainResult(this, obj);
     };
   });
@@ -2187,12 +2200,13 @@
   _.each(['concat', 'join', 'slice'], function(name) {
     var method = ArrayProto[name];
     _.prototype[name] = function() {
-      // 如果调用该函数的对象_chain属性为true, 则返回_(this).chain(),否则返回method.apply(this._wrapped, arguments)的结果
+      // 此处作用同上
       return chainResult(this, method.apply(this._wrapped, arguments));
     };
   });
 
   // Extracts the result from a wrapped and chained object.
+  // _.prototype.value(): 调用可以获取被包裹的原始 对象
   _.prototype.value = function() {
     return this._wrapped;
   };

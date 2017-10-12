@@ -1,6 +1,6 @@
 >这篇文章主要理解下数组这部分里面 平常写代码中经常可能遇到的地方，例如数组解嵌套， 数组去重等， 其它的一些方法在我的github源码解析项目中基本也都添加了详细的注解，地址：https://github.com/Hilda1227/source-code-analyze 有兴趣的话可以看下~~
-##  _.flatten（）
-在underscore.js中，提供了一个_.flatten函数，作用是将类似于[1,[2,[3],4,[5,6]]]这样层层嵌套的数组去除里面的嵌套，返回一个类似[1,2,3,4,5,6]这样简单结构的数组，也可以根据传入的shallow参数来决定是否只去除里面一层嵌套，此函数实现如下：
+##  flatten
+在underscore.js中，提供了一个\_.flatten函数，作用是将类似于[1,[2,[3],4,[5,6]]]这样层层嵌套的数组去除里面的嵌套，返回一个类似[1,2,3,4,5,6]这样简单结构的数组，也可以根据传入的shallow参数来决定是否只去除里面一层嵌套，此函数实现如下：
 ```javascript
   // Flatten out an array, either recursively (by default), or just one level.
   // 给用户提供一个接口，array: 数组， shallow: 供用户决定是否只减少一维的嵌套
@@ -48,11 +48,12 @@
     return output;
   };
 ```
-里面的大致思路是，遍历数组每一项
+里面的大致思路是，遍历数组每一项  
 1. 该项为数组，如果传入shallow为true, 即只解一层嵌套，就将该项里面的元素直接逐项复制到返回结果中，如果shallow值为false, 那么就需要递归调用flatten函数，直到不为数组
 2. 该项不为数组，直接赋值到结果数组中即可  
-。。。这个strict参数还未get到其深意，待理解了再来补充~~
-## _.uniq()去重
+。。。这个strict参数还未get到其深意，待理解了再来补充~~  
+
+## uniq
 ```javascript
   // 返回 array去重后的副本, 使用 === 做相等测试.
   // 如果您确定 array 已经排序, 那么给 isSorted 参数传递 true值, 此函数将运行的更快的算法.
@@ -97,16 +98,16 @@
   };
 ```
 该实现思路大概是for循环遍历数组每一项，然后分为3种情况：
-1. 数组有序，则直接与前一项做比较， 不相等则放入结果数组
-2. 数组无序，有迭代函数，则判断seen中是否已经存在该迭代结果，没有则放入结果数组 
-3. 数组无序，没有迭代函数， 则直接判断结果数组中是否存在该项值， 没有则放入结果数组  
+* 数组有序，则直接与前一项做比较， 不相等则放入结果数组
+* 数组无序，有迭代函数，则判断seen中是否已经存在该迭代结果，没有则放入结果数组 
+* 数组无序，没有迭代函数， 则直接判断结果数组中是否存在该项值， 没有则放入结果数组  
 
 ## 查找
-underscore中有5个提供给用户的关于数组查找的函数：
-1. _.indexOf(array, value, [isSorted]) ：返回value在该 array 中的索引值  
-2. _.lastIndexOf(array, value, [fromIndex]) ：返回value在该 array 中的从最后开始的索引值  
-3. _.findIndex(array, predicate, [context]) :类似于_.indexOf，当predicate通过真检查时，返回第一个索引值；否则返回-1。
-4. _.findLastIndex(array, predicate, [context]) :和_.findIndex类似，但反向迭代数组，当predicate通过真检查时，最接近末端的索引值将被返回。    
+underscore中有4个提供给用户的关于数组查找的函数：
+1. \_.indexOf(array, value, [isSorted]) ：返回value在该 array 中的索引值。   
+2. \_.lastIndexOf(array, value, [fromIndex]) ：返回value在该 array 中的从最后开始的索引值。    
+3. \_.findIndex(array, predicate, [context]) :类似于\_.indexOf，当predicate通过真检查时，返回第一个索引值；否则返回-1。  
+4. \_.findLastIndex(array, predicate, [context]) :和\_.findIndex类似，但反向迭代数组，当predicate通过真检查时，最接近末端的索引值将被返回。    
 
 ```javascript
  // Returns the first index on an array-like that passes a predicate test.
@@ -186,5 +187,5 @@ underscore中有5个提供给用户的关于数组查找的函数：
     };
   };
 ```
-看起来createIndexFinder比createPredicateIndexFinder反而更复杂一些，因为寻找值相等的索引，还需要分数组是否有序，要查找的元素是否为NaN这些特殊情况，你可能会想，_.indexOf 和 _.lastIndexOf函数不是有现成的了吗，为何要这么麻烦再来封装一个，这是因为indexOf和 _.lastIndexOf 在ECMA-262 标准 的第5版中被加入，但并非所有的浏览器都支持该方法。而且原生的方法无法正确判断NaN这个特殊情况，那么如果以后你需要写一个indexOf的polyfill, 相信聪明的你一定已经有想法了~~
+看起来createIndexFinder比createPredicateIndexFinder反而更复杂一些，因为寻找值相等的索引，还需要分数组是否有序，要查找的元素是否为NaN这些特殊情况，你可能会想，indexOf 和 lastIndexOf函数不是有现成的了吗，为何要这么麻烦再来封装一个，这是因为indexOf和 lastIndexOf 在ECMA-262 标准 的第5版中被加入，但并非所有的浏览器都支持该方法。而且原生的方法无法正确判断NaN这个特殊情况，那么如果以后你需要写一个indexOf的polyfill, 相信聪明的你一定已经有想法了~~
 
