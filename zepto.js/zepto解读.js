@@ -6,8 +6,9 @@
     define(function() { return factory(global) })
   else
     factory(global)
-  // 匿名函数自身调用，传入两个参数，一个this, 一个大的函数，
-  //所有内容都封装在这个大函数中，将window传给这个大的函数作为参数
+  // 匿名函数自身调用，传入两个参数，一个this, 一个大的函数（便与阐述给它命名为fn)，
+  // 所有内容都封装在这个fn中，将window传给这fn作为参数
+  // 便于理解，姑且看做整个框架是执行的 全局对象.fn()
 }(this, function(window) {
   // Zepto等于一个立即执行函数返回的结果
   var Zepto = (function() {
@@ -34,7 +35,6 @@
     capitalRE = /([A-Z])/g,
 
     // special attributes that should be get/set via method calls
-    // 应该通过方法调用来设置/获取的特殊属性
     methodAttributes = ['val', 'css', 'html', 'text', 'data', 'width', 'height', 'offset'],
 
     adjacencyOperators = [ 'after', 'prepend', 'before', 'append' ],
@@ -74,6 +74,7 @@
     isArray = Array.isArray ||
       function(object){ return object instanceof Array }
 
+  // 判断传入的element是否能被selector选择
   zepto.matches = function(element, selector) {
     // 如果element不是一个DOM节点或者selector不存在或为false，则立即返回false
     if (!selector || !element || element.nodeType !== 1) return false
@@ -91,41 +92,71 @@
     // 如果matchesSelector存在， 则返回element.matchesSelector(selector)执行的结果
     if (matchesSelector) return matchesSelector.call(element, selector)
     // fall back to performing a selector:
+    // 如果matchesSelector不存在，则下面是它的hack方法
     var match, parent = element.parentNode, temp = !parent
-    // 如果parent不存在， 则将一个创建的div作为parent,插入到element当中去
+
+    // 如果parent不存在， 则将一个创建的div作为parent,将element插入 
     if (temp) (parent = tempParent).appendChild(element)
-    // 
+
+    // 注意 ~取反位运算符  作用是将值取负数再减1   如-1变成0  0变成-1
     match = ~zepto.qsa(parent, selector).indexOf(element)
+    // 如果没有 父节点，就执行 tempParent 移除当前元素，因为前面把当前元素加入到这个tempParent中
+    // 注意&&运算符的规则，前面一个为true，才去执行后面一个
     temp && tempParent.removeChild(element)
     return match
   }
 
+  // 返回元素类型
   function type(obj) {
+    
     return obj == null ? String(obj) :
+    // toString.call(obj)得到表示obj类型的字符串 class2type是想干啥？
       class2type[toString.call(obj)] || "object"
   }
 
+  // 判断类型
   function isFunction(value) { return type(value) == "function" }
+
+  // 判断是否是 window对象（注意，w为小写）指当前的浏览器窗口，window对象的window属性指向自身。
+  // 即 window.window === window
   function isWindow(obj)     { return obj != null && obj == obj.window }
+  // 判断是否为Document类型，即window.document元素，Document类型nodeType值为9
   function isDocument(obj)   { return obj != null && obj.nodeType == obj.DOCUMENT_NODE }
   function isObject(obj)     { return type(obj) == "object" }
+  // 判断是否是以Object.prototype为原型对象的对象
   function isPlainObject(obj) {
     return isObject(obj) && !isWindow(obj) && Object.getPrototypeOf(obj) == Object.prototype
   }
 
+  // 类数组定义： 有length属性，其它属性（索引）为非负整数
+  // 判断obj是否为数组或类数组
   function likeArray(obj) {
+    // 如果Boolean(obj)为true，存在length属性， 则等于其length属性
     var length = !!obj && 'length' in obj && obj.length,
       type = $.type(obj)
 
+    // obj不是函数和window
     return 'function' != type && !isWindow(obj) && (
+      // array类型，则返回true  （数组
+      // 不是array类型，length等于0,则返回true
+      // 不是array类型，length不等于0，但是length为number类型且大于0，且obj有length-1这个属性，则返回true,(类数组
+      // 都不满足返回false
       'array' == type || length === 0 ||
         (typeof length == 'number' && length > 0 && (length - 1) in obj)
     )
   }
-
+  // 筛选数组，剔除值为null或undefined的元素
   function compact(array) { return filter.call(array, function(item){ return item != null }) }
+
+  // ?????解嵌套吗，不太懂
+  // $.fn是一个对象，它拥有Zepto对象上所有可用的方法，在这个对象添加一个方法，所有的Zepto对象上都能用到该方法
+  // $.fn.concat添加元素到一个Zepto对象集合形成一个新数组。如果参数是一个数组，那么这个数组中的元素将会合并到Zepto对象集合中。
   function flatten(array) { return array.length > 0 ? $.fn.concat.apply([], array) : array }
+ 
+  // 将短横线格式的字符串转化为驼峰格式的字符串 如: "background-color" => "backgroundColor"
+  // /-+(.)?/g 匹配"-"+一个除换行符以外的字符
   camelize = function(str){ return str.replace(/-+(.)?/g, function(match, chr){ return chr ? chr.toUpperCase() : '' }) }
+
   function dasherize(str) {
     return str.replace(/::/g, '/')
            .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
