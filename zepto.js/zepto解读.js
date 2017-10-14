@@ -16,6 +16,7 @@
   var undefined, key, $, classList, emptyArray = [], concat = emptyArray.concat, filter = emptyArray.filter, slice = emptyArray.slice,
     document = window.document,
     elementDisplay = {}, classCache = {},
+    // css属性值是数值且不带px单位的属性
     cssNumber = { 'column-count': 1, 'columns': 1, 'font-weight': 1, 'line-height': 1,'opacity': 1, 'z-index': 1, 'zoom': 1 },
     // 分析该正则，分为如下几个部分：0或多个非空白字符开头 < 1或多个单词字符或者! 0或多个非>字符 >
     // 所以最后匹配出的是代码中的第一个html标签,如: <h1><span>test</span></h1>匹配出<h1>, <!DOCTYPE html>匹配出<!DOCTYPE html>
@@ -28,6 +29,7 @@
     singleTagRE = /^<(\w+)\s*\/?>(?:<\/\1>|)$/,
 
     // < 非自闭和标签单词 单词字符或者:一或多个 非>字符0或多个 />   （忽略大小写，全局匹配
+    // 如： <h1 abc />
     tagExpanderRE = /<(?!area|br|col|embed|hr|img|input|link|meta|param)(([\w:]+)[^>]*)\/>/ig,
     // 匹配body 或 html 忽略大小写
     rootNodeRE = /^(?:body|html)$/i,
@@ -99,6 +101,8 @@
     if (temp) (parent = tempParent).appendChild(element)
 
     // 注意 ~取反位运算符  作用是将值取负数再减1   如-1变成0  0变成-1
+    // 将parent作为上下文，来查找selector的匹配结果，并获取element在结果集的索引，
+    // 不存在时为－1,再通过~-1转成0，存在时返回一个非零的值
     match = ~zepto.qsa(parent, selector).indexOf(element)
     // 如果没有 父节点，就执行 tempParent 移除当前元素，因为前面把当前元素加入到这个tempParent中
     // 注意&&运算符的规则，前面一个为true，才去执行后面一个
@@ -157,43 +161,70 @@
   // /-+(.)?/g 匹配"-"+一个除换行符以外的字符
   camelize = function(str){ return str.replace(/-+(.)?/g, function(match, chr){ return chr ? chr.toUpperCase() : '' }) }
 
+  // 与上面的目的相反，将驼峰格式的字符串转化为短横线格式 如: dasherize("borderColor") => "border-color"
   function dasherize(str) {
-    return str.replace(/::/g, '/')
-           .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
-           .replace(/([a-z\d])([A-Z])/g, '$1_$2')
-           .replace(/_/g, '-')
-           .toLowerCase()
+    return str.replace(/::/g, '/')  //将：：替换成/
+           .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')  // 将形如AAAb格式转化为AA_Ab
+           .replace(/([a-z\d])([A-Z])/g, '$1_$2')  // 将形如 1A => 1_A ;  aA => a_A
+           .replace(/_/g, '-')   // 将 _ => -
+           .toLowerCase()  // 将所有字符转化为小写形式
   }
+  // 数组去重，个人认为很精妙的一个方法，
+  // 将数组进行过滤，剔除indexOf查找返回的值不等于自己索引的元素
+  // 不等于自己索引，则说明在前面找到了其他项，此项不是唯一项，应被过滤掉
   uniq = function(array){ return filter.call(array, function(item, idx){ return array.indexOf(item) == idx }) }
 
+  // 返回一个正则，并将这个正则缓存起来
+  // 如classRE("color") => /(^|\\s)color(\\s|$)/ 能匹配'color' 或'color '或' color '或' color ',即两边可以有空格
   function classRE(name) {
+    // classCache是前面声明的一个空对象，如果classCache有这个属性，则返回其属性值
+    // 没有则添加这个属性，并返回值
     return name in classCache ?
       classCache[name] : (classCache[name] = new RegExp('(^|\\s)' + name + '(\\s|$)'))
   }
 
+  // 给需要的css属性加上'px'单位 
   function maybeAddPx(name, value) {
+    // 如果value是Number类型且不在cssNumber中，就加上px单位并返回，否则直接返回value
     return (typeof value == "number" && !cssNumber[dasherize(name)]) ? value + "px" : value
   }
 
+  //获取节点的默认display属性，如果该值为'none'则返回'block'
   function defaultDisplay(nodeName) {
     var element, display
+    // elementDisplay是前面声明的一个空对象
+    // 如果elementDisplay没有nodename这个属性
     if (!elementDisplay[nodeName]) {
+      // 创建一个同样名称的节点
       element = document.createElement(nodeName)
+      // 将它插入文档流
       document.body.appendChild(element)
+      // 获取该元素的display属性值
+      // Window.getComputedStyle方法： https://developer.mozilla.org/zh-CN/docs/Web/API/Window/getComputedStyle
+      // getPropertyValue: https://developer.mozilla.org/en-US/docs/Web/API/CSSStyleDeclaration/getPropertyValue
       display = getComputedStyle(element, '').getPropertyValue("display")
+      // 将该元素从文档流移除
       element.parentNode.removeChild(element)
+      // 如果display == "none"，则执行display = "block"
       display == "none" && (display = "block")
+      // 将结果缓存到elementDisplay对象中
       elementDisplay[nodeName] = display
     }
+    // 返回dispaly值
     return elementDisplay[nodeName]
   }
 
+  // 以数组形式返回element元素的所有子节点
   function children(element) {
+    // 如果elment有'children'属性，则将children属性值转化为数组并返回
     return 'children' in element ?
       slice.call(element.children) :
+      // 否则遍历childNodes属性值，如果nodeType属性值为1,则返回该节点
+      // 通过这个方法过滤掉类似注释， 文本，这样的元素，只留下Element类型的节点
+      // nodeType==1才是Element元素节点
       $.map(element.childNodes, function(node){ if (node.nodeType == 1) return node })
   }
-
+  // 定义一个构造函数，将数组的所有项赋值给新对象作为属性，和一个selector属性
   function Z(dom, selector) {
     var i, len = dom ? dom.length : 0
     for (i = 0; i < len; i++) this[i] = dom[i]
@@ -206,32 +237,47 @@
   // The generated DOM nodes are returned as an array.
   // This function can be overridden in plugins for example to make
   // it compatible with browsers that don't support the DOM fully.
+  // properties: 节点属性对象
   zepto.fragment = function(html, name, properties) {
     var dom, nodes, container
 
     // A special case optimization for a single tag
+    // 如果html字符串匹配singleTagRE，则直接利用html字符串里面的标签名创建一个元素赋值给dom返回
     if (singleTagRE.test(html)) dom = $(document.createElement(RegExp.$1))
-
+    // 如果不匹配即不是自闭合标签
     if (!dom) {
+      // 如果repalce方法存在，则将类似<h1 abc/>的字符串替换成<h1></abc> 什么鬼???
       if (html.replace) html = html.replace(tagExpanderRE, "<$1></$2>")
+        // 如果name未传入， 则name等于字符串html里的第一个标签名
       if (name === undefined) name = fragmentRE.test(html) && RegExp.$1
+      // 如果containers里不含有name属性，则name等于 '*'
       if (!(name in containers)) name = '*'
-
+      // container为containers里对应的dom元素
       container = containers[name]
+      // '' + html将html转化为字符串
       container.innerHTML = '' + html
+      // 将container.childNodes转化为数组进行遍历，将其从container中移除
       dom = $.each(slice.call(container.childNodes), function(){
         container.removeChild(this)
       })
     }
-
+    // 如果properties是原生对象
     if (isPlainObject(properties)) {
+      // $()通过执行css选择器，包装dom节点，或者通过一个html字符串创建多个元素 来创建一个Zepto集合对象。
+      // 此处通过dom创建一个节点
       nodes = $(dom)
       $.each(properties, function(key, value) {
+        // 前面定义methodAttributes = ['val', 'css', 'html', 'text', 'data', 'width', 'height', 'offset'],
+        // 如果methodAttributes中包含这个key,通过调用Zepto的方法赋值，否则通过 nodes.attr(key, value)
+         // 否则，直接给nodes设置该dom属性
         if (methodAttributes.indexOf(key) > -1) nodes[key](value)
         else nodes.attr(key, value)
       })
     }
 
+    // 最终返回的dom可能有两种形式
+    // 第一，如果 html 是单标签，则dom被复制为一个zepto对象 dom = $(document.createElement(RegExp.$1))
+    // 第二，如果 html 不是单标签，则dom被复制为一个DOM节点的数组
     return dom
   }
 
