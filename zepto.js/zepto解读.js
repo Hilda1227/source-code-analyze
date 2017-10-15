@@ -247,6 +247,7 @@
     // 如果不匹配即不是自闭合标签
     if (!dom) {
       // 如果repalce方法存在，则将类似<h1 abc/>的字符串替换成<h1></abc> 什么鬼???
+      // <(?!area|br|col|embed|hr|img|input|link|meta|param)(([\w:]+)[^>]*)\/>
       if (html.replace) html = html.replace(tagExpanderRE, "<$1></$2>")
         // 如果name未传入， 则name等于字符串html里的第一个标签名
       if (name === undefined) name = fragmentRE.test(html) && RegExp.$1
@@ -256,28 +257,28 @@
       container = containers[name]
       // '' + html将html转化为字符串
       container.innerHTML = '' + html
-      // 将container.childNodes转化为数组进行遍历，将其从container中移除
+      // 将取container子节点并转化为数组进行遍历
       dom = $.each(slice.call(container.childNodes), function(){
-        container.removeChild(this)
+        container.removeChild(this) // 从container中移除
       })
+      // 这样就将字符串转化为了真正的dom节点
     }
     // 如果properties是原生对象
     if (isPlainObject(properties)) {
-      // $()通过执行css选择器，包装dom节点，或者通过一个html字符串创建多个元素 来创建一个Zepto集合对象。
+      // $()：通过执行css选择器，包装dom节点，或者通过一个html字符串创建多个元素 来创建一个Zepto集合对象。
       // 此处通过dom创建一个节点
       nodes = $(dom)
       $.each(properties, function(key, value) {
         // 前面定义methodAttributes = ['val', 'css', 'html', 'text', 'data', 'width', 'height', 'offset'],
         // 如果methodAttributes中包含这个key,通过调用Zepto的方法赋值，否则通过 nodes.attr(key, value)
-         // 否则，直接给nodes设置该dom属性
         if (methodAttributes.indexOf(key) > -1) nodes[key](value)
         else nodes.attr(key, value)
       })
     }
 
     // 最终返回的dom可能有两种形式
-    // 第一，如果 html 是单标签，则dom被复制为一个zepto对象 dom = $(document.createElement(RegExp.$1))
-    // 第二，如果 html 不是单标签，则dom被复制为一个DOM节点的数组
+    // 第一，如果 html 是单标签，则dom被赋值为一个zepto对象 dom = $(document.createElement(RegExp.$1))
+    // 第二，如果 html 不是单标签，则dom被赋值为一个DOM节点的数组
     return dom
   }
 
@@ -290,6 +291,7 @@
 
   // `$.zepto.isZ` should return `true` if the given object is a Zepto
   // collection. This method can be overridden in plugins.
+  // 判断对象是否是zepto.Z函数构造的对象
   zepto.isZ = function(object) {
     return object instanceof zepto.Z
   }
@@ -298,44 +300,75 @@
   // takes a CSS selector and an optional context (and handles various
   // special cases).
   // This method can be overridden in plugins.
+  // 当我们调用$(selector, context)时，直接返回zepto.init(selector, context)执行的结果，生成zepto对象，
+  // zepto.init不同类型的参数来生产指定对象
+  // $()
+  // $(selector, [context])   ⇒ collection
+  // $(<Zepto collection>)   ⇒ same collection
+  // $(<DOM nodes>)   ⇒ collection
+  // $(htmlString)   ⇒ collection
+  // $(htmlString, attributes)   ⇒ collection v1.0+
+  // Zepto(function($){ ... })  
+
+  // $ = function(selector, context){
+  //   return zepto.init(selector, context)
+  // }
+  // 根据传入的selector,返回一个zepto.Z()构造的实例
   zepto.init = function(selector, context) {
     var dom
     // If nothing given, return an empty Zepto collection
+    // 没有传入selector，返回空Zepto对象
     if (!selector) return zepto.Z()
     // Optimize for string selectors
+    // 如果selector是一个字符串
     else if (typeof selector == 'string') {
+      // 去掉首尾空格
       selector = selector.trim()
       // If it's a html fragment, create nodes from it
       // Note: In both Chrome 21 and Firefox 15, DOM error 12
       // is thrown if the fragment doesn't begin with <
+      // 如果selector是一个标签
       if (selector[0] == '<' && fragmentRE.test(selector))
+        // 则构造一个dom元素
         dom = zepto.fragment(selector, RegExp.$1, context), selector = null
       // If there's a context, create a collection on that context first, and select
       // nodes from there
+      // 如果提供了上下文，则在上下文中查找元素
       else if (context !== undefined) return $(context).find(selector)
       // If it's a CSS selector, use it to select nodes.
+      // 否则就在整个全局dom文档中查找元素
       else dom = zepto.qsa(document, selector)
     }
     // If a function is given, call it when the DOM is ready
+    // 如果是一个函数，就在在页面的dom加载完毕的时候执行该函数
     else if (isFunction(selector)) return $(document).ready(selector)
     // If a Zepto collection is given, just return it
+    // 是zepto.Z函数构造的实例  直接返回原实例 
     else if (zepto.isZ(selector)) return selector
+      // 否则
     else {
       // normalize array if an array of nodes is given
+      // 如果是数组或类数组，则将其剔除null或undefined后返回
       if (isArray(selector)) dom = compact(selector)
       // Wrap DOM nodes.
+      // 如果是对象，则放进一个数组中赋给dom，selector置空
       else if (isObject(selector))
         dom = [selector], selector = null
       // If it's a html fragment, create nodes from it
+      // 是html片段
       else if (fragmentRE.test(selector))
+        // 则根据它构造dom节点赋值给dom, selector置空
         dom = zepto.fragment(selector.trim(), RegExp.$1, context), selector = null
       // If there's a context, create a collection on that context first, and select
       // nodes from there
+      // 如果传入了上下文，则在上下文中查找元素
       else if (context !== undefined) return $(context).find(selector)
       // And last but no least, if it's a CSS selector, use it to select nodes.
+      // 否则调用zepto.qsa在全局进行查找
       else dom = zepto.qsa(document, selector)
     }
     // create a new Zepto collection from the nodes found
+    // 将dom通过zepto.Z构造后返回
     return zepto.Z(dom, selector)
   }
 
@@ -343,6 +376,26 @@
   // function just call `$.zepto.init, which makes the implementation
   // details of selecting nodes and creating Zepto collections
   // patchable in plugins.
+  // 用来对selector做相应处理，并构造成zepto实例
+  // 1：这里首先判断如果没有传入参数，则返回新建的zepto对象
+  
+  // 2：如果传入的是函数，$(function(){}) ,则执行$(document).ready(),即在文档加载完后执行自定义函数
+  
+  // 3：如果selector本身就是一个zepto对象，则直接返回它自己
+  
+  // 4：如果selector不是一个zepto对象，则根据不同类型的selector生产节点对象并赋值于dom
+  
+  // 5：如果selector是数组，则将数组里的无效值去掉后赋值给dom
+  
+  // 6：如果selector是对象，则直接转化为数组
+  
+  // 7：如果selector是html片段，则用zepto.fragment构造dom节点
+  
+  // 8：如果selector是css选择字符串且有context上下文
+  
+  // 9：如果selector是css选择字符串且没有context上下文
+  
+  // 10：调用zepto.Z，生产zepto对象
   $ = function(selector, context){
     return zepto.init(selector, context)
   }
@@ -374,19 +427,42 @@
   // `$.zepto.qsa` is Zepto's CSS selector implementation which
   // uses `document.querySelectorAll` and optimizes for some special cases, like `#id`.
   // This method can be overridden in plugins.
+  // 通过选择器表达式查找DOM
+  // 原理  判断下选择器的类型（id/class/标签/表达式）
+  // 
+  // 当浏览器不支持 el.matches 时，可以用 document.querySelectorAll 来实现 matchs
+  // https://developer.mozilla.org/zh-CN/docs/Web/API/Element/matches
+  // 通过selector选择相应的dom元素，并将其转化为数组返回
   zepto.qsa = function(element, selector){
     var found,
-        maybeID = selector[0] == '#',
-        maybeClass = !maybeID && selector[0] == '.',
+        maybeID = selector[0] == '#', // 是否是id
+        maybeClass = !maybeID && selector[0] == '.',  // 是否是类
+        // 是如果是 id 或 class,则取符号后的名字,否则直接selector
         nameOnly = maybeID || maybeClass ? selector.slice(1) : selector, // Ensure that a 1 char tag name still gets checked
+        // simpleSelectorRE 用于匹配一个包括（字母、数组、下划线、-）的字符串， 是否是一个简单的字符串
+        // （可能是一个复杂的选择器，如 'div#div1 .item[link] .red'）
         isSimple = simpleSelectorRE.test(nameOnly)
+
+        // 1. 先看能否通过getElementById选择
+        // 2. 能否通过getElementsByClassName选择
+        // 3. 能否通过getElementsByTagName选择
+        // 4. 都不行的话直接用querySelectorAll选择
+
+        // 判断是否存在document.getElementById && 是简单选择器 && id选择器
     return (element.getElementById && isSimple && maybeID) ? // Safari DocumentFragment doesn't have getElementById
+      // 是的话通过document.getElementById找到该元素返回，找不到则返回一个空数组
       ( (found = element.getElementById(nameOnly)) ? [found] : [] ) :
+      // 不是的话判断element是否不是Element元素节点 && 不是html根节点 && element.nodeType !== 11 DocumentFragment	代表轻量级的 Document 对象，能够容纳文档的某个部分
+      // 满足的话返回[]
       (element.nodeType !== 1 && element.nodeType !== 9 && element.nodeType !== 11) ? [] :
+      // 否则
       slice.call(
+        // 判断是否是简单选择 && 不是id && document.getElementsByClassName存在
         isSimple && !maybeID && element.getElementsByClassName ? // DocumentFragment doesn't have getElementsByClassName/TagName
-          maybeClass ? element.getElementsByClassName(nameOnly) : // If it's simple, it could be a class
-          element.getElementsByTagName(selector) : // Or a tag
+          // 是类 ? getElementsByClassName(nameOnly)找到该元素返回 ：getElementsByTagName(selector)返回
+          (maybeClass ? element.getElementsByClassName(nameOnly) : // If it's simple, it could be a class
+          element.getElementsByTagName(selector) ): // Or a tag
+          // 直接用querySelectorAll选择返回
           element.querySelectorAll(selector) // Or it's not simple, and we need to query all
       )
   }

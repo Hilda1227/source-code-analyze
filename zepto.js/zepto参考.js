@@ -496,15 +496,15 @@ var Zepto = (function() {
     return (element.getElementById && isSimple && maybeID) ? // Safari DocumentFragment doesn't have getElementById
       // 如果找到元素，则返回 ［该元素］，否则返回 ［］。
       ( (found = element.getElementById(nameOnly)) ? [found] : [] ) :
-      //如果不满足判断条件，element既不是dom元素节点，也不是整个文档（DOM 树的根节点）  #document，也不是 代表轻量级的 Document 对象，能够容纳文档的某个部分 #document 片段，那么就返回［］因为其他节点找不到元素
+      //如果不满足判断条件，element既不是dom元素节点，也不是整个文档（DOM 树的根节点）  #document，也不对是 代表轻量级的 Document 象，能够容纳文档的某个部分 #document 片段，那么就返回［］因为其他节点找不到元素
       (element.nodeType !== 1 && element.nodeType !== 9 && element.nodeType !== 11) ? [] :
       // 将获取的所有元素集合，都转换为数组       
       slice.call(
         // 条件判断  A ? (B ? C : D) : E
         // 判断是否单选择, 不是 id 选择器, 有 getElementByClassName 方法
-        isSimple && !maybeID && element.getElementsByClassName ? // DocumentFragment doesn't have getElementsByClassName/TagName
+        isSimple && !maybeID && element.getElementsByClassName ?( // DocumentFragment doesn't have getElementsByClassName/TagName
           maybeClass ? element.getElementsByClassName(nameOnly) : // If it's simple, it could be a class
-          element.getElementsByTagName(selector) : // Or a tag
+          element.getElementsByTagName(selector)) : // Or a tag
           element.querySelectorAll(selector) // Or it's not simple, and we need to query all
       )
   }
