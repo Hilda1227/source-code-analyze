@@ -6,7 +6,7 @@ function extend(target) {
     var deep = false, args = Array.prototype.slice.call(arguments, 1);
     if(typeof target == 'boolean'){
         deep = target,
-        args = args.shift();
+        target = args.shift();
     }
     args.forEach((arg) => {
         for(var key in arg){
