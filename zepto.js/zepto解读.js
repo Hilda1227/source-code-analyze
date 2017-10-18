@@ -238,13 +238,14 @@
   // This function can be overridden in plugins for example to make
   // it compatible with browsers that don't support the DOM fully.
   // properties: 节点属性对象
+  // 根据传入的html，name和properties参数，返回相应的dom节点
   zepto.fragment = function(html, name, properties) {
     var dom, nodes, container
 
     // A special case optimization for a single tag
     // 如果html字符串匹配singleTagRE，则直接利用html字符串里面的标签名创建一个元素赋值给dom返回
     if (singleTagRE.test(html)) dom = $(document.createElement(RegExp.$1))
-    // 如果不匹配即不是自闭合标签
+    // 如果不匹配, 即不是自闭合标签
     if (!dom) {
       // 如果repalce方法存在，则将类似<h1 abc/>的字符串替换成<h1></abc> 什么鬼???
       // <(?!area|br|col|embed|hr|img|input|link|meta|param)(([\w:]+)[^>]*)\/>
@@ -255,7 +256,7 @@
       if (!(name in containers)) name = '*'
       // container为containers里对应的dom元素
       container = containers[name]
-      // '' + html将html转化为字符串
+      // '' + html将html转化为字符串,再插入到container里面
       container.innerHTML = '' + html
       // 将取container子节点并转化为数组进行遍历
       dom = $.each(slice.call(container.childNodes), function(){
@@ -368,7 +369,7 @@
       else dom = zepto.qsa(document, selector)
     }
     // create a new Zepto collection from the nodes found
-    // 将dom通过zepto.Z构造后返回
+    // 最后将dom通过zepto.Z构造后返回
     return zepto.Z(dom, selector)
   }
 
@@ -396,30 +397,44 @@
   // 9：如果selector是css选择字符串且没有context上下文
   
   // 10：调用zepto.Z，生产zepto对象
+
+  // 调用这个也就相当于调用init吧
   $ = function(selector, context){
     return zepto.init(selector, context)
   }
 
+  // deep决定是否深度复制
   function extend(target, source, deep) {
+    // 遍历source里面的所有属性
     for (key in source)
+      // 如果deep为true，并且source是原生对象，或者source[key]是数组类型
       if (deep && (isPlainObject(source[key]) || isArray(source[key]))) {
+        // 如果source[key]是原生对象，并且target[key]不是
         if (isPlainObject(source[key]) && !isPlainObject(target[key]))
+          // target[key]初始化为一个空对象
           target[key] = {}
+        // 如果source[key]是数组，并且target[key]不是
         if (isArray(source[key]) && !isArray(target[key]))
+          // target[key]初始化为一个空数组
           target[key] = []
+        // 递归调用extend
         extend(target[key], source[key], deep)
       }
+      // 否则只要source[key]的值不为undefined, 则直接赋值
       else if (source[key] !== undefined) target[key] = source[key]
   }
 
   // Copy all but undefined properties from one or more
   // objects to the `target` object.
   $.extend = function(target){
-    var deep, args = slice.call(arguments, 1)
+    // 截取除了第一个target之外的所有参数并转化为一个数组
+    var deep, args = slice.call(arguments, 1);
+    // 如果targer是布尔类型，那么第一个参数就不是目标对象，第二个参数才是真正的target
     if (typeof target == 'boolean') {
       deep = target
       target = args.shift()
     }
+    // 遍历arg每一项，用extend赋值属性到target上
     args.forEach(function(arg){ extend(target, arg, deep) })
     return target
   }
