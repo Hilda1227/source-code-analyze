@@ -483,28 +483,38 @@
   }
 
   function filtered(nodes, selector) {
+    // 如果selector等于null,直接将原nodes经过$()后返回，否则经$.fn.filter过滤后返回
     return selector == null ? $(nodes) : $(nodes).filter(selector)
   }
 
+
+  //Node.contains()返回的是一个布尔值，来表示传入的节点是否为该节点的后代节点。
   $.contains = document.documentElement.contains ?
     function(parent, node) {
+      // 如果存在原生的contains方法，则直接用原生方法判断
       return parent !== node && parent.contains(node)
     } :
     function(parent, node) {
+      // 看node的父节点是否等于parent，是则返回true
+      // 不等则再向上层赋值判断，直到追溯到<html>元素,它的parent是document对象，document.parentNode==null跳出
       while (node && (node = node.parentNode))
         if (node === parent) return true
       return false
     }
 
   function funcArg(context, arg, idx, payload) {
+    // 判断arg是否是函数，是则返回以context为上下文，idx, payload为参数调用的结果
+    // 不是则原样返回arg
     return isFunction(arg) ? arg.call(context, idx, payload) : arg
   }
-
+  // 设置node节点的name特性值
   function setAttribute(node, name, value) {
+    // value是否传入，未传入就清除name特性，传入了则设置name特性值为value
     value == null ? node.removeAttribute(name) : node.setAttribute(name, value)
   }
 
   // access className property while respecting SVGAnimatedString
+  // 对svg的兼容啥的，svg还没接触过，接触了再来看看
   function className(node, value){
     var klass = node.className || '',
         svg   = klass && klass.baseVal !== undefined
@@ -523,15 +533,22 @@
   // String  => self
   function deserializeValue(value) {
     try {
+      // value存在时，进行中间这个复杂表达式的运算，否则直接返回value
       return value ?
+      // value == "true" 时直接返回true,否则进行后面的运算
         value == "true" ||
+        // value == "false"时直接返回false,否则，判断是否value == "null"，是的话直接返回null,不是就
         ( value == "false" ? false :
           value == "null" ? null :
+          // 将value先转化为数值再转化为字符串再来判断是否 == value, 是的话就将value转化为数值后返回
           +value + "" == value ? +value :
+          // 不是就看value是否匹配以 '[' 或 '{' 开头，是的话就将value解析为数组或对象返回，（后面有$.parseJSON = JSON.parse
+          // 不是就直接返回原value
           /^[\[\{]/.test(value) ? $.parseJSON(value) :
           value )
         : value
     } catch(e) {
+      // 捕获错误，返回原value
       return value
     }
   }
